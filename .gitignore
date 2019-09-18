@@ -1,0 +1,7 @@
+*.png
+*.mp4
+*pycache*
+*DS_Store*
+media
+results*
+deeper*
