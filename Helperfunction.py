@@ -70,6 +70,17 @@ def write_dataframe(dataframe, filename):
 def read_dataframe(filename):
     return pd.read_csv(filename).to_dict(orient= 'records')[0]
 
+def write_pickle(dicty, filename):
+    pickle_out = open(filename, "wb")
+    pickle.dump(dicty, pickle_out)
+    pickle_out.close()
+
+def read_pickle(filename):
+    pickle_in = open(filename, "rb")
+    parameter_list = pickle.load(pickle_in)
+    pickle_in.close()
+    return parameter_list
+
 def input_generator(input_value):
     input_value = np.asarray(input_value, dtype= np.float32)
     input_value = np.expand_dims(input_value, axis=0)

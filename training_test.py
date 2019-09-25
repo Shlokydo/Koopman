@@ -30,7 +30,7 @@ def test(parameter_list, model, time_steps = 5, N_traj = 3):
     x_t_true = np.concatenate((x_t_true[:,:time_steps+1,:], x_t), axis=0)
     animate(x_t_true)
     plot_figure(x_t_true, True)
-    return parameter_list
+    return parameter_list['global_epoch']
 
 
 def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer):
@@ -94,6 +94,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
     global_step = 0
     global_step_val = 0
     val_min = 0
+    val_loss_min = 100
 
     cal_mth_loss_flag = False
     cal_mth_loss_flag_val = False
@@ -209,11 +210,13 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             # Reset training metrics at the end of each epoch
             loss_metric_val.reset_states()
                     
-            checkpoint.epoch.assign_add(1)
-            if int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint'] == 0:
-                save_path = manager.save()
-                print("Saved checkpoint for epoch {}: {}".format(int(checkpoint.epoch), save_path))
-                print("loss {}".format(loss.numpy()))
+            if val_loss_min > val_loss:
+                    val_loss_min = val_loss
+                    checkpoint.epoch.assign_add(1)
+                    if int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint'] == 0:
+                        save_path = manager.save()
+                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch, save_path))
+                        print("loss {:1.2f}".format(loss.numpy()))
 
             if math.isnan(val_acc):
                 print('Breaking out as the validation loss is nan')
@@ -228,8 +231,6 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                             val_min = val_acc
                         else:
                             print('Breaking loop as validation accuracy not improving')
-                            save_path = manager.save()
-                            print("Saved checkpoint for epoch {}: {}".format(int(checkpoint.epoch), save_path))
                             print("loss {}".format(loss.numpy()))
                             break
             
@@ -240,7 +241,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             # print('\nTime for epoch (in minutes): %s \n' %(epoch_time))
 
     parameter_list['global_epoch'] = epoch 
-    return parameter_list
+    return parameter_list['global_epoch']
 
 def traintest(parameter_list, flag):
 
