@@ -2,6 +2,8 @@ import tensorflow as tf
 import math
 import time
 import numpy as np
+import sys
+import os
 
 import network_arch as net 
 import Helperfunction as helpfunc 
@@ -32,7 +34,6 @@ def test(parameter_list, model, time_steps = 5, N_traj = 3):
     plot_figure(x_t_true, True)
     return parameter_list['global_epoch']
 
-
 def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer):
     #Importing dataset into dataframe
     dataframe = helpfunc.import_datset(parameter_list['key'])
@@ -50,7 +51,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
     initial_dataset = helpfunc.dataset_scaling(initial_dataset, parameter_list['input_scaling'])
 
     #Generate split x and y sequence from the dataset
-    initial_dataset_x, initial_dataset_y = helpfunc.split_sequences(initial_dataset, parameter_list['num_timesteps'])
+    initial_dataset_x, initial_dataset_y, _= helpfunc.split_sequences(initial_dataset, parameter_list['num_timesteps'])
 
     #Shuffling the dataset
     initial_dataset_x, initial_dataset_y = helpfunc.np_array_shuffle(initial_dataset_x, initial_dataset_y)
@@ -180,8 +181,8 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 
                 global_step_val += 1
                 
-                t_next_predicted_val, reconstruction_loss_val, linearization_loss_val, t_mth_predictions_val = model(t_current_val,
-                                                                                                                    cal_mth_loss = cal_mth_loss_flag_val)
+                t_next_predicted_val, reconstruction_loss_val, linearization_loss_val,
+                                            t_mth_predictions_val = model(t_current_val, cal_mth_loss = cal_mth_loss_flag_val)
                 
                 val_loss_next_prediction = loss_func(t_next_predicted_val, t_next_actual_val) / tf.sqrt(tf.reduce_mean(tf.square(t_next_actual_val)))
                 if cal_mth_loss_flag_val:
@@ -239,6 +240,10 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             tf.summary.scalar('Epoch time', epoch_time, step=epoch)
 
             # print('\nTime for epoch (in minutes): %s \n' %(epoch_time))
+
+    if not(os.path.exists(parameter_list['model_loc'])):
+        model_json = model.to_json()
+        helpfunc.write_to_json(parameter_list['model_loc'], model_json)
 
     parameter_list['global_epoch'] = epoch 
     return parameter_list['global_epoch']

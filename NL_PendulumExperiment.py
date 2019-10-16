@@ -78,6 +78,7 @@ for i in range(parameter_list['experiments']):
     
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/exp_' + str(i+1)
     log_dir = parameter_list['checkpoint_dir'] + '/summeries'
+    parameter_list['model_loc'] = parameter_list['checkpoint_dir'] + '/model.json'
     checkpoint_dir = parameter_list['checkpoint_dir'] + '/checkpoints'
 
     pickle_name = parameter_list['checkpoint_dir'] + '/params.pickle'
@@ -113,6 +114,6 @@ for i in range(parameter_list['experiments']):
         shutil.rmtree(parameter_list['checkpoint_dir'])
         sys.exit()
 
-    parameter_list['global_epoch'] = training_test.traintest(copy.deepcopy(parameter_list), flag)
+    parameter_list['global_epoch'] = training_test.traintest(copy.deepcopy(parameter_list), log_dir, checkpoint_dir, flag)
 
     helpfunc.write_pickle(parameter_list, pickle_name)

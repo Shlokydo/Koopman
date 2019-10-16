@@ -224,6 +224,8 @@ class Koopman_RNN(tf.keras.Model):
         self.decoder = decoder(parameter_list)
         self.mth_step = parameter_list['mth_step']
         self.recon_hp = parameter_list['recon_hp']
+        self.timesteps = parameter_list['timesteps']
+        self.batchsize = parameter_list['Batch_size']
 
     def call(self, inputs, cal_mth_loss = False):
 
@@ -238,12 +240,14 @@ class Koopman_RNN(tf.keras.Model):
 
         #This part contributes towards the reconstruction loss
         input_reconstruct = self.decoder(k_embeddings_cur)
-        reconstruct_loss = tf.reduce_mean(tf.reduce_mean(tf.square(
+        reconstruct_loss = tf.reduce_sum(tf.reduce_sum(tf.square(
                                 tf.subtract(input_reconstruct, inputs)),1)) / tf.reduce_mean(tf.reduce_mean(tf.square(inputs),1))
+        reconstruct_loss = reconstruct_loss * (1.0 / (self.timesteps * self.batchsize))
 
         #This part contributes towards the linearization loss
-        linearization_loss = tf.reduce_mean(tf.reduce_mean(tf.square(
+        linearization_loss = tf.reduce_sum(tf.reduce_sum(tf.square(
                                 tf.subtract(k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:])), 1))
+        linearization_loss = linearization_loss * (1.0 / (self.timesteps * self.batchsize))
 
         #This part contributes towards the mth prediction loss
         next_state_space_mth_list = []

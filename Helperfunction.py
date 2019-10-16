@@ -51,7 +51,8 @@ def split_sequences(sequences, n_steps):
 		seq_x, seq_y = sequences[i*n_steps:end_ix, :], sequences[i*n_steps+1:end_ix+1, :]
 		X.append(seq_x)
 		y.append(seq_y)
-	return np.array(X), np.array(y)
+	    a_x, a_y = np.array(X), np.array(y)
+        return a_x, a_y, a_x.shape[0]
 
 def np_array_shuffle(initial_dataset_x, initial_dataset_y):
     initial_dataset_concat = np.concatenate((initial_dataset_x, initial_dataset_y), axis = 2)
@@ -118,3 +119,13 @@ def difference(x_true, x_pred):
     print(per)
     per[per == -np.inf] = 0
     return per
+
+def write_to_json(loc, model):
+    with open(loc, 'w') as json_file:
+        json_file.write(model)
+
+def read_json(loc):
+    json_file = open(loc, 'r')
+    content = json_file.read()
+    json_file.close()
+    return content
