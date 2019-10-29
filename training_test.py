@@ -32,7 +32,7 @@ def test(parameter_list, model, time_steps = 5, N_traj = 3):
     x_t_true = np.concatenate((x_t_true[:,:time_steps+1,:], x_t), axis=0)
     animate(x_t_true)
     plot_figure(x_t_true, True)
-    return parameter_list['global_epoch']
+    return None
 
 def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer):
     #Importing dataset into dataframe
@@ -51,7 +51,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
     initial_dataset = helpfunc.dataset_scaling(initial_dataset, parameter_list['input_scaling'])
 
     #Generate split x and y sequence from the dataset
-    initial_dataset_x, initial_dataset_y, parameter_list['timesteps']= helpfunc.split_sequences(initial_dataset, parameter_list['num_timesteps'])
+    initial_dataset_x, initial_dataset_y = helpfunc.split_sequences(initial_dataset, parameter_list['num_timesteps'])
 
     #Shuffling the dataset
     initial_dataset_x, initial_dataset_y = helpfunc.np_array_shuffle(initial_dataset_x, initial_dataset_y)
@@ -83,9 +83,6 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
     #Shuffling the dataset again (kinda redundant but no problem so why not)
     dataset = dataset.shuffle(parameter_list['Buffer_size'], reshuffle_each_iteration=True)
-
-    #Getting the model
-    model = get_model(parameter_list)
 
     #loss function for training 
     loss_func = tf.keras.losses.MeanSquaredError()
@@ -184,8 +181,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 
                 global_step_val += 1
                 
-                t_next_predicted_val, reconstruction_loss_val, linearization_loss_val,
-                                            t_mth_predictions_val = model(t_current_val, cal_mth_loss = cal_mth_loss_flag_val)
+                t_next_predicted_val, reconstruction_loss_val, linearization_loss_val, t_mth_predictions_val = model(t_current_val, cal_mth_loss = cal_mth_loss_flag_val)
                 
                 val_loss_next_prediction = loss_func(t_next_predicted_val, t_next_actual_val) / tf.sqrt(tf.reduce_mean(tf.square(t_next_actual_val)))
                 if cal_mth_loss_flag_val:
@@ -254,7 +250,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 def traintest(parameter_list, flag):
 
     #Code for training
-
+    model = get_model(parameter_list)
     #Creating the learning rate scheduler
     learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'],
                                                                       decay_steps = parameter_list['lr_decay_steps'],
@@ -282,23 +278,22 @@ def traintest(parameter_list, flag):
         if flag == 'test':
             print('Starting testing...')
             test(parameter_list, model)
-            return parameter_list
+            return parameter_list['global_epoch']
 
         if flag == 'train':
             print('Starting training of Experiment: {}... \n'.format(parameter_list['Experiment_No']))
-            parameter_list = train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
-            return parameter_list
+            return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
+            
     else:
         print("No checkpoint exists.")
         
         if flag == 'test':
             print('Cannot test as no checkpoint exists. Exiting...')
-            return parameter_list
+            return parameter_list['global_epoch']
         
         if flag == 'train':
             print('Initializing from scratch for Experiment: {}... \n'.format(parameter_list['Experiment_No']))
-            parameter_list = train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
-            return parameter_list
+            return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
 def get_model(parameter_list):
 
@@ -307,6 +302,6 @@ def get_model(parameter_list):
         j_string = helpfunc.read_json(parameter_list['model_loc'])
         model = tf.keras.models.model_from_json(j_string)
     else:
-        model = net.rnn_model(parameter_list)
+        model = net.Koopman_RNN(parameter_list)
 
     return model

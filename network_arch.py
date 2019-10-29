@@ -224,7 +224,7 @@ class Koopman_RNN(tf.keras.Model):
         self.decoder = decoder(parameter_list)
         self.mth_step = parameter_list['mth_step']
         self.recon_hp = parameter_list['recon_hp']
-        self.timesteps = parameter_list['timesteps']
+        self.timesteps = parameter_list['num_timesteps'] - 1
         self.batchsize = parameter_list['Batch_size']
 
     def call(self, inputs, cal_mth_loss = False):

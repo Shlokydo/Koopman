@@ -9,6 +9,7 @@ import pickle
 import shutil
 
 import training_test
+import multigpu_training_test as multi_train
 import Helperfunction as helpfunc 
 
 parameter_list = {}
@@ -25,8 +26,8 @@ parameter_list['num_complex_pairs'] = 1                 #Number of complex conju
 parameter_list['num_evals'] = 2          
 
 parameter_list['experiments'] = 1
-parameter_list['checkpoint_dir'] = '/results_nlpendulum'
-parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir'] + './deeper_reconst_koop'
+parameter_list['checkpoint_expdir'] = './results_nlpendulum'
+parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir'] + '/deeper_reconst_koop'
 
 #Getting the default parameter_list
 #Settings related to dataset creation
@@ -69,23 +70,24 @@ parameter_list['max_checkpoint_keep'] = 4               #Max number of checkpoin
 parameter_list['num_epochs_checkpoint'] = 2            #Num of epochs after which to create a checkpoint
 parameter_list['log_freq'] = 4                          #Logging frequence for console output
 parameter_list['summery_freq'] = 1                      #Logging frequence for summeries
-parameter_list['log_dir'] = './summeries'               #Log directory for tensorboard summary
+parameter_list['log_dir'] = '/summeries'               #Log directory for tensorboard summary
 parameter_list['epochs'] = 500                         #Number of epochs
 
-flag = 'test'
+flag = 'train'
+multi_flag = False
 
 for i in range(parameter_list['experiments']):
     
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/exp_' + str(i+1)
-    log_dir = parameter_list['checkpoint_dir'] + '/summeries'
+    parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
     parameter_list['model_loc'] = parameter_list['checkpoint_dir'] + '/model.json'
-    checkpoint_dir = parameter_list['checkpoint_dir'] + '/checkpoints'
+    parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
 
     pickle_name = parameter_list['checkpoint_dir'] + '/params.pickle'
 
     if not os.path.exists(parameter_list['checkpoint_dir']):
-        os.makedirs(log_dir)
-        os.makedirs(checkpoint_dir)
+        os.makedirs(parameter_list['log_dir'])
+        os.makedirs(parameter_list['checkpoint_dir'])
 
         parameter_list['Experiment_No'] = i
         #width = r.randint(5)
@@ -114,6 +116,9 @@ for i in range(parameter_list['experiments']):
         shutil.rmtree(parameter_list['checkpoint_dir'])
         sys.exit()
 
-    parameter_list['global_epoch'] = training_test.traintest(copy.deepcopy(parameter_list), log_dir, checkpoint_dir, flag)
+    if multi_flag:
+        parameter_list['global_epoch'] = multi_train.traintest(copy.deepcopy(parameter_list), flag)
+    else:
+        parameter_list['global_epoch'] = training_test.traintest(copy.deepcopy(parameter_list), flag)
 
     helpfunc.write_pickle(parameter_list, pickle_name)

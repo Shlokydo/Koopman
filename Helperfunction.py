@@ -2,6 +2,7 @@ import numpy as np
 from scipy import integrate
 import tensorflow as tf
 import pandas as pd
+import pickle
 
 import os
 import time
@@ -40,19 +41,16 @@ def dataset_scaling(dataset, scaler):
     return dataset * float(scaler)
 
 def split_sequences(sequences, n_steps):
-	X, y = list(), list()
-	for i in range(len(sequences)):
-		# find the end of this pattern
-		end_ix = i*n_steps + n_steps - 1
-		# check if we are beyond the dataset
-		if end_ix > len(sequences)-1:
-			break
-		# gather input and output parts of the pattern
-		seq_x, seq_y = sequences[i*n_steps:end_ix, :], sequences[i*n_steps+1:end_ix+1, :]
-		X.append(seq_x)
-		y.append(seq_y)
-	    a_x, a_y = np.array(X), np.array(y)
-        return a_x, a_y, a_x.shape[0]
+    X, y = list(), list()
+    for i in range(len(sequences)):
+        # find the end of this pattern
+        end_ix = i*n_steps + n_steps - 1
+        if (end_ix > len(sequences) - 1):
+            break
+        seq_x, seq_y = sequences[i*n_steps:end_ix, :], sequences[i*n_steps + 1:end_ix + 1, :]
+        X.append(seq_x)
+        y.append(seq_y)
+    return np.array(X), np.array(y)
 
 def np_array_shuffle(initial_dataset_x, initial_dataset_y):
     initial_dataset_concat = np.concatenate((initial_dataset_x, initial_dataset_y), axis = 2)
