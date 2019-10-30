@@ -173,9 +173,7 @@ class koopman_jordan(tf.keras.layers.Layer):
     def call(self, inputs):
         
         # print(f'Calling koopman_jordan with input shape {inputs.shape}')
-        omegas_real_vec, omegas_complex_vec, y = tf.split(inputs, 
-                                                 [self.omegas_real, self.omegas_complex, 
-                                                 self.omegas_real + self.omegas_complex], axis= 2)
+        omegas_real_vec, omegas_complex_vec, y = tf.split(inputs, [self.omegas_real, self.omegas_complex, self.omegas_real + self.omegas_complex], axis= 2)
         y_real, y_complex = tf.split(y, [self.omegas_real, self.omegas_complex], axis= 2)
         
         scale_real = tf.exp(omegas_real_vec * self.delta_t)
@@ -186,11 +184,9 @@ class koopman_jordan(tf.keras.layers.Layer):
         for i in range(int(self.omegas_complex/2)):
             index = i * 2
             
-            scale_complex = tf.exp(omegas_complex_vec[:, :, index:index + 1], self.delta_t)
-            entry_1 = tf.multiply(scale_complex, tf.cos(omegas_complex_vec[:, :, index + 1: index + 2], 
-                                                        self.delta_t))
-            entry_2 = tf.multiply(scale_complex, tf.sin(omegas_complex_vec[:, :, index + 1: index + 2],
-                                                        self.delta_t))
+            scale_complex = tf.exp(omegas_complex_vec[:, :, index:index + 1] * self.delta_t)
+            entry_1 = tf.multiply(scale_complex, tf.cos(omegas_complex_vec[:, :, index + 1: index + 2] * self.delta_t))
+            entry_2 = tf.multiply(scale_complex, tf.sin(omegas_complex_vec[:, :, index + 1: index + 2] * self.delta_t))
             row_1 = tf.stack([entry_1, -entry_2], axis=2)
             row_1 = tf.reshape(row_1, [row_1.shape[0], row_1.shape[1], row_1.shape[2]])
             
@@ -240,13 +236,11 @@ class Koopman_RNN(tf.keras.Model):
 
         #This part contributes towards the reconstruction loss
         input_reconstruct = self.decoder(k_embeddings_cur)
-        reconstruct_loss = tf.reduce_sum(tf.reduce_sum(tf.square(
-                                tf.subtract(input_reconstruct, inputs)),1)) / tf.reduce_mean(tf.reduce_mean(tf.square(inputs),1))
+        reconstruct_loss = tf.reduce_sum(tf.reduce_sum(tf.square(tf.subtract(input_reconstruct, inputs)),1)) / tf.reduce_mean(tf.reduce_mean(tf.square(inputs),1))
         reconstruct_loss = reconstruct_loss * (1.0 / (self.timesteps * self.batchsize))
 
         #This part contributes towards the linearization loss
-        linearization_loss = tf.reduce_sum(tf.reduce_sum(tf.square(
-                                tf.subtract(k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:])), 1))
+        linearization_loss = tf.reduce_sum(tf.reduce_sum(tf.square(tf.subtract(k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:])), 1))
         linearization_loss = linearization_loss * (1.0 / (self.timesteps * self.batchsize))
 
         #This part contributes towards the mth prediction loss

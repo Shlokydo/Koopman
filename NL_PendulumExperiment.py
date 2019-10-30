@@ -55,6 +55,7 @@ parameter_list['de_output_units'] = 2                   #Number of final output 
 
 #Settings related to trainig
 parameter_list['learning_rate'] = 0.001                 #Initial learning rate
+parameter_list['lr_decay_rate'] = 0.96
 parameter_list['learning_rate'] = parameter_list['learning_rate'] * parameter_list['Batch_size'] / 256.0
 parameter_list['lr_decay_steps'] = 500000                 #No of steps for learning rate decay scheduling
 parameter_list['dropout'] = 0.0                         #Dropout for the layers
@@ -74,7 +75,7 @@ parameter_list['log_dir'] = '/summeries'               #Log directory for tensor
 parameter_list['epochs'] = 500                         #Number of epochs
 
 flag = 'train'
-multi_flag = False
+multi_flag = 1
 
 for i in range(parameter_list['experiments']):
     
@@ -117,8 +118,10 @@ for i in range(parameter_list['experiments']):
         sys.exit()
 
     if multi_flag:
+        print('Multi GPU {}ing'.format(flag))
         parameter_list['global_epoch'] = multi_train.traintest(copy.deepcopy(parameter_list), flag)
     else:
+        print('Single or no GPU {}ing'.format(flag))
         parameter_list['global_epoch'] = training_test.traintest(copy.deepcopy(parameter_list), flag)
 
     helpfunc.write_pickle(parameter_list, pickle_name)

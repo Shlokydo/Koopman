@@ -252,10 +252,7 @@ def traintest(parameter_list, flag):
     #Code for training
     model = get_model(parameter_list)
     #Creating the learning rate scheduler
-    learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'],
-                                                                      decay_steps = parameter_list['lr_decay_steps'],
-                                                                      decay_rate = 0.96,
-                                                                      staircase = True)
+    learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'],decay_steps = parameter_list['lr_decay_steps'], decay_rate = 0.96, staircase = True)
 
     #Setting up the optimizer
     optimizer = tf.keras.optimizers.Adam(learning_rate=parameter_list['learning_rate'],
