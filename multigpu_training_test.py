@@ -189,23 +189,23 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
             epochs = parameter_list['epochs']
 
-            global_epoch += 1
-
             for epoch in range(epochs):
 
+                global_epoch += 1
+
                 start_time = time.time()
-                print('\nStart of epoch {}'.format(epoch))
+                print('\nStart of epoch {}'.format(global_epoch))
 
                 #Manipulating flag for mth prediction loss calculation
-                if not((epoch+1) % mth_loss_calculation_manipulator):
-                    if not(cal_mth_loss_flag_val):
-                        print('\nStarting calculating mth prediction loss\n')
-                        # cal_mth_loss_flag = True
+                if not((global_epoch) % mth_loss_calculation_manipulator):
+                    if not(cal_mth_l oss_flag_val):
+                        print('\nStar ting calculating mth prediction loss\n')
+                        # cal_mth_loss_flag = 1
                         cal_mth_loss_flag_val = 1
                         mth_loss_calculation_manipulator = parameter_list['mth_cal_patience']
                     else:
-                        # cal_mth_loss_flag = False
-                        cal_mth_loss_flag_val = 0
+                        # cal_mth_loss_flag = 0
+                        cal_mth_loss_f lag_val = 0
                         mth_loss_calculation_manipulator = parameter_list['mth_no_cal_epochs']
                         print('\nStopping calulation of mth prediction loss\n')
 
@@ -218,36 +218,35 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
                     # Open a GradientTape to record the operations run
                     # during the forward pass, which enables autodifferentiation.
-                    with tf.GradientTape() as tape:
-                        loss, t_metric, t_reconst, t_lin, t_mth = distributed_train(inputs)
+                    loss, t_metric, t_reconst, t_lin, t_mth = distributed_train(inputs)
 
-                        if not (step % parameter_list['log_freq']):
-                            print('Training loss (for one batch) at step {}: {}'.format(step+1, float(loss)))
-                            print('Seen so far: {} samples'.format(global_step * parameter_list['Batch_size']))
+                    if not (step % parameter_list['log_freq']):
+                        print('Training loss (for one batch) at step {}: {}'.format(step+1, float(loss)))
+                        print('Seen so  far: {} samples'.format(global_step * parameter_list['Batch_size']))
 
                 print('Training acc over epoch: {} \n'.format(float(t_metric)))
 
-                if not (epoch % parameter_list['summery_freq']):
+                if not (global_epoch % parameter_list['summery_freq']):
                     tf.summary.scalar('RootMSE error', t_metric, step= global_epoch)
                     tf.summary.scalar('Loss_total', loss, step= global_epoch)
                     tf.summary.scalar('Reconstruction_loss', t_reconst, step= global_epoch)
                     tf.summary.scalar('Linearization_loss', t_lin, step= global_epoch)
                     if cal_mth_loss_flag:
-                        tf.summary.scalar('Mth_prediction_loss', t_mth, step= global_epoch)
+                        tf.summary.scala r('Mth_prediction_loss', t_mth, step= global_epoch)
 
                 for v_step, v_inp in enumerate(val_dataset):
 
-                    v_inputs = (v_inp, cal_mth_loss_flag_val)
+                    v_inputs = (v_in p, cal_mth_loss_flag_val)
 
                     v_loss, v_metric, v_reconst, v_lin, v_mth = distributed_val(v_inputs) 
 
                     if not (v_step % parameter_list['log_freq']):   
-                        print('Validation loss (for one batch) at step {} : {}'.format(step + 1, float(v_loss)))
+                        print('Validation loss (for one batch) at step {} : {}'.format(v_step + 1, float(v_loss)))
                 
-                print('Validation scc over epoch: {} \n'.format(float(v_metric)))
+                print('Validation acc over epoch: {} \n'.format(float(v_metric)))
 
-                if not (epoch % parameter_list['summery_freq']):
-                    tf.summary.scalar('RootMSE error', v_metric, step= global_epoch)
+                if not (global_epoch % parameter_list['summery_freq']):
+                    tf.summary.scalar('RootMSE error', v_m etric, step= global_epoch)
                     tf.summary.scalar('Loss_total', v_loss, step= global_epoch)
                     tf.summary.scalar('Reconstruction_loss', v_reconst, step= global_epoch)
                     tf.summary.scalar('Linearization_loss', v_lin, step= global_epoch)
@@ -255,50 +254,50 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                         tf.summary.scalar('Mth_prediction_loss', v_mth, step= global_epoch)
 
                 if val_loss_min > v_loss:
-                    val_loss_min = v_loss
+                    val_loss_min = v_loss 
                     checkpoint.epoch.assign_add(1)
                     if  not (int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint']):
-                        save_path = manager.save()
-                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch, save_path))
-                        print("loss {:1.2f}".format(loss.numpy()))
+                        save_path = manager.save() 
+                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
+                        print("loss {}".format(loss.numpy()))
 
                 if math.isnan(v_metric):
-                    print('Breaking out as the validation loss is nan')
+                    print('Breaking out as the validation loss is nan') 
                     break 
 
-                if (epoch > 19):
-                    if not (epoch % parameter_list['early_stop_patience']):
-                        if not (val_min):
+                if (global_epoch > 19):
+                    if not (epoch % parameter_list['early_stop_pati ence']):
+                        if  not (val_min):
                             val_min = v_metric
                         else:
-                            if val_min > val_acc:
+                            if val_min > val_acc: 
                                 val_min = val_acc
                             else:
-                                print('Breaking loop as validation accuracy not improving')
+                                print('Breaking loop  as validation accuracy not improving')
                                 print("loss {}".format(loss.numpy()))
                                 break
 
-                print('Time for epoch (in minutes): %s' %((time.time() - start_time)/60))
+                print('Time for epoch (in seconds): %s' %((time.time() - start_time)))
 
-    if not(os.path.exists(parameter_list['model_loc'])):
-        model_json = model.to_json()
-        helpfunc.write_to_json(parameter_list['model_loc'], model_json)
+    #if not(os.path.exists(parameter_list['model_loc'])):
+    #    model_json = model.to_json()
+    #    helpfunc.write_to_json(parameter_list['model_loc'], model_json)
 
-    parameter_list['global_epoch'] = epoch 
+    parameter_list['global_epoch'] = global_epoch 
     return parameter_list['global_epoch']
 
 def traintest(parameter_list, flag):
 
-    print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
+    print('\nGPU Available: {}\n'.format(tf.test.is_g pu_available()))
 
     #Get the Model
     with mirrored_strategy.scope():
-        if os.path.exists(parameter_list['model_loc']):
-            print('\nLoading saved model...\n')
-            j_string = helpfunc.read_json(parameter_list['model_loc'])
-            model = tf.keras.models.model_from_json(j_string)
-        else:
-            model = net.Koopman_RNN(parameter_list = parameter_list)
+    #    if os.path.exists(parameter_list['model_loc']):
+    #        print('\nLoading saved model...\n')
+    #        j_string = helpfunc.read_json(parameter_list['model_loc'])
+    #        model = tf.keras.models.model_from_json(j_string)
+    #    else:
+        model = net.Koopman_RNN(parameter_list = parameter_list)
 
         #Defining Model compiling parameters
         learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = True)

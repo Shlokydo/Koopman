@@ -215,8 +215,8 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 checkpoint.epoch.assign_add(1)
                 if int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint'] == 0:
                     save_path = manager.save()
-                    print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch, save_path))
-                    print("loss {:1.2f}".format(loss.numpy()))
+                    print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
+                    print("loss {:1.8f}".format(loss.numpy()))
 
             if math.isnan(val_acc):
                 print('Breaking out as the validation loss is nan')
@@ -240,9 +240,9 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
             # print('\nTime for epoch (in minutes): %s \n' %(epoch_time))
 
-    if not(os.path.exists(parameter_list['model_loc'])):
-        model_json = model.to_json()
-        helpfunc.write_to_json(parameter_list['model_loc'], model_json)
+    #if not(os.path.exists(parameter_list['model_loc'])):
+    #    model_json = model.to_json()
+    #    helpfunc.write_to_json(parameter_list['model_loc'], model_json)
 
     parameter_list['global_epoch'] = epoch 
     return parameter_list['global_epoch']
@@ -294,11 +294,11 @@ def traintest(parameter_list, flag):
 
 def get_model(parameter_list):
 
-    if os.path.exists(parameter_list['model_loc']):
-        print('\nLoading saved model...\n')
-        j_string = helpfunc.read_json(parameter_list['model_loc'])
-        model = tf.keras.models.model_from_json(j_string)
-    else:
-        model = net.Koopman_RNN(parameter_list)
+    #if os.path.exists(parameter_list['model_loc']):
+    #    print('\nLoading saved model...\n')
+    #    j_string = helpfunc.read_json(parameter_list['model_loc'])
+    #    model = tf.keras.models.model_from_json(j_string)
+    #else:
+    model = net.Koopman_RNN(parameter_list)
 
     return model
