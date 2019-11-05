@@ -8,6 +8,7 @@ import sys
 import pickle
 import shutil
 import argparse
+import time
 
 import training_test
 import multigpu_training_test as multi_train
@@ -75,6 +76,7 @@ parameter_list['mth_cal_patience'] = 1                  #number of epochs after 
 parameter_list['mth_no_cal_epochs'] = 40                #Number of epochs for which mth loss is not calculated
 parameter_list['recon_hp'] = 0.001
 parameter_list['global_epoch'] = 0
+parameter_list['val_min'] = 100
 
 #Settings related to saving checkpointing and logging
 parameter_list['max_checkpoint_keep'] = 4               #Max number of checkpoints to keep
@@ -89,7 +91,7 @@ multi_flag = args.gpu
 
 for i in parameter_list['experiments']:
    
-    print(i)  
+    print(i)   
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/exp_' + str(i)
     parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
     #parameter_list['model_loc'] = parameter_list['checkpoint_dir'] + '/model.json'
@@ -128,12 +130,16 @@ for i in parameter_list['experiments']:
         shutil.rmtree(parameter_list['checkpoint_expdir'])
         sys.exit()
 
+    sys.stdout = open(parameter_list['checkpoint_dir'] + '/output.txt', 'w')
+    
+    start = time.time()
     if multi_flag:
         print('Multi GPU {}ing'.format(flag))
         parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
-        parameter_list['global_epoch'] = multi_train.traintest(copy.deepcopy(parameter_list), flag)
+        parameter_list = multi_train.traintest(copy.deepcopy(parameter_list), flag)
     else:
         print('Single or no GPU {}ing'.format(flag))
-        parameter_list['global_epoch'] = training_test.traintest(copy.deepcopy(parameter_list), flag)
-
+        parameter_list = training_test.traintest(copy.deepcopy(parameter_list), flag)
+    print('Total execution time (in minutes): {}'.format((time.time() - start)/60))
+    
     helpfunc.write_pickle(parameter_list, pickle_name)

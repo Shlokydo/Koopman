@@ -178,7 +178,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
         global_epoch = parameter_list['global_epoch']
         global_step = 0
         val_min = 0
-        val_loss_min = 100
+        val_loss_min = parameter_list['val_min']
 
         cal_mth_loss_flag = 0
         cal_mth_loss_flag_val = 0
@@ -198,14 +198,14 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
                 #Manipulating flag for mth prediction loss calculation
                 if not((global_epoch) % mth_loss_calculation_manipulator):
-                    if not(cal_mth_l oss_flag_val):
+                    if not(cal_mth_loss_flag_val):
                         print('\nStar ting calculating mth prediction loss\n')
                         # cal_mth_loss_flag = 1
                         cal_mth_loss_flag_val = 1
                         mth_loss_calculation_manipulator = parameter_list['mth_cal_patience']
                     else:
                         # cal_mth_loss_flag = 0
-                        cal_mth_loss_f lag_val = 0
+                        cal_mth_loss_flag_val = 0
                         mth_loss_calculation_manipulator = parameter_list['mth_no_cal_epochs']
                         print('\nStopping calulation of mth prediction loss\n')
 
@@ -232,11 +232,11 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                     tf.summary.scalar('Reconstruction_loss', t_reconst, step= global_epoch)
                     tf.summary.scalar('Linearization_loss', t_lin, step= global_epoch)
                     if cal_mth_loss_flag:
-                        tf.summary.scala r('Mth_prediction_loss', t_mth, step= global_epoch)
+                        tf.summary.scalar('Mth_prediction_loss', t_mth, step= global_epoch)
 
                 for v_step, v_inp in enumerate(val_dataset):
 
-                    v_inputs = (v_in p, cal_mth_loss_flag_val)
+                    v_inputs = (v_inp, cal_mth_loss_flag_val)
 
                     v_loss, v_metric, v_reconst, v_lin, v_mth = distributed_val(v_inputs) 
 
@@ -246,7 +246,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 print('Validation acc over epoch: {} \n'.format(float(v_metric)))
 
                 if not (global_epoch % parameter_list['summery_freq']):
-                    tf.summary.scalar('RootMSE error', v_m etric, step= global_epoch)
+                    tf.summary.scalar('RootMSE error', v_metric, step= global_epoch)
                     tf.summary.scalar('Loss_total', v_loss, step= global_epoch)
                     tf.summary.scalar('Reconstruction_loss', v_reconst, step= global_epoch)
                     tf.summary.scalar('Linearization_loss', v_lin, step= global_epoch)
@@ -284,11 +284,12 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
     #    helpfunc.write_to_json(parameter_list['model_loc'], model_json)
 
     parameter_list['global_epoch'] = global_epoch 
-    return parameter_list['global_epoch']
+    parameter_list['val_min'] = val_loss_min
+    return parameter_list
 
 def traintest(parameter_list, flag):
 
-    print('\nGPU Available: {}\n'.format(tf.test.is_g pu_available()))
+    print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
 
     #Get the Model
     with mirrored_strategy.scope():
@@ -323,7 +324,7 @@ def traintest(parameter_list, flag):
         if flag == 'test':
             print('Starting testing...')
             test(parameter_list, model)
-            return parameter_list['global_epoch']
+            return parameter_list
             
         if flag == 'train':
             print('Starting training of Experiment: {}... \n'.format(parameter_list['Experiment_No']))
@@ -335,7 +336,7 @@ def traintest(parameter_list, flag):
         if flag == 'test':
              print('Cannot test as no checkpoint exists. Exiting...')
              sys.exit()
-             return parameter_list['global_epoch']
+             return parameter_list
         
         if flag == 'train':
             print('Initializing from scratch for Experiment: {}... \n'.format(parameter_list['Experiment_No']))
