@@ -138,7 +138,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
             val_loss_next_prediction = compute_loss(t_next_predicted_val, t_next_actual_val)
             if cal_mth_loss_flag_val:
-                val_loss_mth_prediction = loss_func(t_mth_prediction_val, t_next_actual_val[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
+                val_loss_mth_prediction = loss_func(t_mth_predictions_val, t_next_actual_val[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
             else:
                 val_loss_mth_prediction = 0
 
@@ -199,12 +199,12 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 #Manipulating flag for mth prediction loss calculation
                 if not((global_epoch) % mth_loss_calculation_manipulator):
                     if not(cal_mth_loss_flag_val):
-                        print('\nStar ting calculating mth prediction loss\n')
-                        # cal_mth_loss_flag = 1
+                        print('\nStarting calculating mth prediction loss\n')
+                        cal_mth_loss_flag = 1
                         cal_mth_loss_flag_val = 1
                         mth_loss_calculation_manipulator = parameter_list['mth_cal_patience']
                     else:
-                        # cal_mth_loss_flag = 0
+                        cal_mth_loss_flag = 0
                         cal_mth_loss_flag_val = 0
                         mth_loss_calculation_manipulator = parameter_list['mth_no_cal_epochs']
                         print('\nStopping calulation of mth prediction loss\n')

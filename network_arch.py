@@ -242,19 +242,21 @@ class Koopman_RNN(tf.keras.Model):
         #This part contributes towards the linearization loss
         linearization_loss = tf.reduce_sum(tf.reduce_sum(tf.square(tf.subtract(k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:])), 1))
         linearization_loss = linearization_loss * (1.0 / (self.timesteps * self.batchsize))
-
-        #This part contributes towards the mth prediction loss
+        
+        reconst_linear_loss = self.recon_hp * reconstruct_loss + linearization_loss
+        self.add_loss(reconst_linear_loss)
         next_state_space_mth_list = []
-
+        
+        #This part contributes towards the mth prediction loss
         if cal_mth_loss:
             for_mth_iterations = inputs.shape[1] - self.mth_step
 
             for j in range(for_mth_iterations):
-                inputs_for_mth = inputs[:,j,:]
+                inputs_for_mth = inputs[:,j,:] 
                 inputs_for_mth = tf.expand_dims(inputs_for_mth, axis=1)
 
                 for i in range(self.mth_step):
-                    k_embeddings_cur_mth = self.encoder(inputs_for_mth)
+                    k_embeddings_cur_mth = self.encoder(inputs_for_mth) 
 
                     k_omegas_mth = self.koopman_aux_net(k_embeddings_cur_mth)
                     k_jordan_input_mth = tf.concat([k_omegas_mth, k_embeddings_cur_mth], axis= 2)
@@ -265,8 +267,7 @@ class Koopman_RNN(tf.keras.Model):
                     inputs_for_mth = next_state_space_mth
 
                 next_state_space_mth_list.append(next_state_space_mth)
-
-            next_state_space_mth_list = np.array(next_state_space_mth_list)
+            next_state_space_mth_list = tf.stack(next_state_space_mth_list)
             next_state_space_mth_list = tf.squeeze(next_state_space_mth_list)
             next_state_space_mth_list = tf.transpose(next_state_space_mth_list, perm=[1,0,2])
 

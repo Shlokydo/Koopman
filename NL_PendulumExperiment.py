@@ -19,16 +19,17 @@ parser = argparse.ArgumentParser(description='Nonlinear Pendulum experiment cont
 parser.add_argument("--t", default='train', type=str, help="Training or testing flag setter", choices=["train", "test"])
 parser.add_argument("--gpu", default=1, type=int, help="To enable/disable multi-gpu training. Default, true.", choices=[0, 1])
 parser.add_argument("--epoch", default=200, type=int, help="Set the number of epochs.")
-parser.add_argument("--experiment", "--exp", default='default', help="Name of the experiment(s)", nargs='*')
+parser.add_argument("--experiment", "--exp", default="default", help="Name of the experiment(s)", nargs='*')
+parser.add_argument("--key", default="nl_pendulum", help="Key for the dataset to be used from the HDF5 file", choices=["nl_pendulum", "lorenz", "discrete"])
 
 args = parser.parse_args()
 
 parameter_list = {}
 
 #Basic setting for all the experiments
-parameter_list['key'] = 'nl_pendulum'
+parameter_list['key'] = args.key
 parameter_list['num_timesteps'] = 51   #Next version, need to read it from the dataset
-parameter_list['num_validation_points'] = 2000
+parameter_list['num_validation_points'] = 256*4
 parameter_list['input_scaling'] = 1
 parameter_list['delta_t'] = 0.2
 
@@ -42,7 +43,7 @@ parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir'] + '/deepe
 
 #Getting the default parameter_list
 #Settings related to dataset creation
-parameter_list['Batch_size'] = 256*8                      #Batch size
+parameter_list['Batch_size'] = 256                      #Batch size
 parameter_list['Buffer_size'] = 50000                    #Buffer size for shuffle
 
 #Encoder layer
@@ -73,7 +74,7 @@ parameter_list['dropout'] = 0.0                         #Dropout for the layers
 parameter_list['early_stop_patience'] = 600               #Patience in num of epochs for early stopping
 parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
 parameter_list['mth_cal_patience'] = 1                  #number of epochs after which mth loss is calculated
-parameter_list['mth_no_cal_epochs'] = 40                #Number of epochs for which mth loss is not calculated
+parameter_list['mth_no_cal_epochs'] = 1                #Number of epochs for which mth loss is not calculated
 parameter_list['recon_hp'] = 0.001
 parameter_list['global_epoch'] = 0
 parameter_list['val_min'] = 100
@@ -91,16 +92,15 @@ multi_flag = args.gpu
 
 for i in parameter_list['experiments']:
    
-    print(i)   
+    print(i)    
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/exp_' + str(i)
     parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
-    #parameter_list['model_loc'] = parameter_list['checkpoint_dir'] + '/model.json'
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
 
     pickle_name = parameter_list['checkpoint_dir'] + '/params.pickle'
 
     if not os.path.exists(parameter_list['checkpoint_dir']):
-        os.makedirs(parameter_list['log_dir']) 
+        os.makedirs(parameter_list['log_dir'])  
         os.makedirs(parameter_list['checkpoint_dir'])
 
         parameter_list['Experiment_No'] = i
@@ -126,19 +126,17 @@ for i in parameter_list['experiments']:
         parameter_list = helpfunc.read_pickle(pickle_name)
 
     else: 
-        print('No pickle file exits at {}'.format(pickle_name))
+        print('No pickle file exits at {}'.format(pickle_name)) 
         shutil.rmtree(parameter_list['checkpoint_expdir'])
         sys.exit()
 
-    sys.stdout = open(parameter_list['checkpoint_dir'] + '/output.txt', 'w')
-    
     start = time.time()
     if multi_flag:
-        print('Multi GPU {}ing'.format(flag))
+        print('Multi GPU {}ing'.format(flag)) 
         parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
         parameter_list = multi_train.traintest(copy.deepcopy(parameter_list), flag)
     else:
-        print('Single or no GPU {}ing'.format(flag))
+        print('Single or no GPU {}ing'.format(flag)) 
         parameter_list = training_test.traintest(copy.deepcopy(parameter_list), flag)
     print('Total execution time (in minutes): {}'.format((time.time() - start)/60))
     
