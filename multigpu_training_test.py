@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import os
 
-import network_arch as net 
+import network_arch_baka as net 
 import Helperfunction as helpfunc 
 from plot import plot_figure, plot_diff, animate
 
@@ -29,11 +29,11 @@ def test(parameter_list, model, time_steps = 5, N_traj = 3):
 
     x_t = np.asarray(prediction_list_global)
     x_diff = helpfunc.difference(x_t_true[:,:time_steps+1,:], x_t)
-    plot_diff(x_diff[:,:,0], time, True, './x_variable.png')
-    plot_diff(x_diff[:,:,1], time, True, './y_variable.png')
+    plot_diff(x_diff[:,:,0], time, True, parameter_list['checkpoint_expdir']+'/media/x_variable.png')
+    plot_diff(x_diff[:,:,1], time, True, parameter_list['checkpoint_expdir']+'/media/y_variable.png')
     x_t_true = np.concatenate((x_t_true[:,:time_steps+1,:], x_t), axis=0)
-    animate(x_t_true)
-    plot_figure(x_t_true, True)
+    animate(x_t_true, parameter_list['checkpoint_expdir'] + '/media/video.mp4')
+    plot_figure(x_t_true, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png')
     return None
 
 def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer):
@@ -246,12 +246,12 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 print('Validation acc over epoch: {} \n'.format(float(v_metric)))
 
                 if not (global_epoch % parameter_list['summery_freq']):
-                    tf.summary.scalar('RootMSE error', v_metric, step= global_epoch)
-                    tf.summary.scalar('Loss_total', v_loss, step= global_epoch)
-                    tf.summary.scalar('Reconstruction_loss', v_reconst, step= global_epoch)
-                    tf.summary.scalar('Linearization_loss', v_lin, step= global_epoch)
+                    tf.summary.scalar('V_RootMSE error', v_metric, step= global_epoch)
+                    tf.summary.scalar('V_Loss_total', v_loss, step= global_epoch)
+                    tf.summary.scalar('V_Reconstruction_loss', v_reconst, step= global_epoch)
+                    tf.summary.scalar('V_Linearization_loss', v_lin, step= global_epoch)
                     if cal_mth_loss_flag_val:
-                        tf.summary.scalar('Mth_prediction_loss', v_mth, step= global_epoch)
+                        tf.summary.scalar('V_Mth_prediction_loss', v_mth, step= global_epoch)
 
                 if val_loss_min > v_loss:
                     val_loss_min = v_loss 
@@ -266,7 +266,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                     break 
 
                 if (global_epoch > 19):
-                    if not (epoch % parameter_list['early_stop_pati ence']):
+                    if not (epoch % parameter_list['early_stop_patience']):
                         if  not (val_min):
                             val_min = v_metric
                         else:

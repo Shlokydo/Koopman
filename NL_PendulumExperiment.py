@@ -29,7 +29,7 @@ parameter_list = {}
 #Basic setting for all the experiments
 parameter_list['key'] = args.key
 parameter_list['num_timesteps'] = 51   #Next version, need to read it from the dataset
-parameter_list['num_validation_points'] = 256*4
+parameter_list['num_validation_points'] = 2048
 parameter_list['input_scaling'] = 1
 parameter_list['delta_t'] = 0.2
 
@@ -43,7 +43,7 @@ parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir'] + '/deepe
 
 #Getting the default parameter_list
 #Settings related to dataset creation
-parameter_list['Batch_size'] = 256                      #Batch size
+parameter_list['Batch_size'] = 256*8                      #Batch size
 parameter_list['Buffer_size'] = 50000                    #Buffer size for shuffle
 
 #Encoder layer
@@ -92,16 +92,18 @@ multi_flag = args.gpu
 
 for i in parameter_list['experiments']:
    
-    print(i)    
+    print(i)     
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/exp_' + str(i)
+    parameter_list['checkpoint_expdir'] = parameter_list['checkpoint_dir']
     parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
 
     pickle_name = parameter_list['checkpoint_dir'] + '/params.pickle'
 
     if not os.path.exists(parameter_list['checkpoint_dir']):
-        os.makedirs(parameter_list['log_dir'])  
+        os.makedirs(parameter_list['log_dir'])   
         os.makedirs(parameter_list['checkpoint_dir'])
+        os.makedirs(parameter_list['checkpoint_expdir'] + '/media')
 
         parameter_list['Experiment_No'] = i
         #width = r.randint(5)
@@ -124,7 +126,8 @@ for i in parameter_list['experiments']:
 
     elif os.path.isfile(pickle_name):
         parameter_list = helpfunc.read_pickle(pickle_name)
-
+        print(parameter_list)
+    
     else: 
         print('No pickle file exits at {}'.format(pickle_name)) 
         shutil.rmtree(parameter_list['checkpoint_expdir'])
@@ -133,11 +136,12 @@ for i in parameter_list['experiments']:
     start = time.time()
     if multi_flag:
         print('Multi GPU {}ing'.format(flag)) 
-        parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+        #parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
         parameter_list = multi_train.traintest(copy.deepcopy(parameter_list), flag)
     else:
         print('Single or no GPU {}ing'.format(flag)) 
         parameter_list = training_test.traintest(copy.deepcopy(parameter_list), flag)
     print('Total execution time (in minutes): {}'.format((time.time() - start)/60))
-    
-    helpfunc.write_pickle(parameter_list, pickle_name)
+   
+    if flag == 'train':
+        helpfunc.write_pickle(parameter_list, pickle_name)

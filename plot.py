@@ -14,7 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 from mpl_toolkits.axisartist.axislines import SubplotZero
 
-def plot_figure(x_t, save_image):
+def plot_figure(x_t, save_image, name):
     fig = plt.figure()
     ax = SubplotZero(fig, 111)
     fig.add_subplot(ax)
@@ -63,7 +63,7 @@ def plot_figure(x_t, save_image):
     ax.legend()
     plt.show()
     if save_image == True:
-        fig.savefig('./nl_pendulum.png', format= 'png', dpi = 1200)
+        fig.savefig(name, format= 'png', dpi = 1200)
     return
 
 def plot_diff(x_t, time, save_image, name):
@@ -104,7 +104,7 @@ def plot_diff(x_t, time, save_image, name):
         fig.savefig(name, format= 'png', dpi = 1200)
     return
 
-def animate(x_t):
+def animate(x_t, name):
     fig = plt.figure()
     ax = fig.add_axes([0, 0, 1, 1], projection= None)
     ax.axis('off')
@@ -150,4 +150,4 @@ def animate(x_t):
                                 frames=70, interval=30, blit=True)
 
     # Save as mp4. This requires mplayer or ffmpeg to be installed
-    anim.save('./NL_Pendulum_video.mp4', fps=15, extra_args=['-vcodec', 'libx264'], dpi = 235)
+    anim.save(name, fps=15, extra_args=['-vcodec', 'libx264'], dpi = 235)

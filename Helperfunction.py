@@ -86,7 +86,7 @@ def input_generator(input_value):
     input_value = np.expand_dims(input_value, axis=0)
     return input_value
 
-def nl_pendulum(N = 10, max_time = 10, delta_t= 0.2, x0 = [-2, -0.8], x1 = [-1.5 , -0.8]):
+def nl_pendulum(N = 10, max_time = 10, delta_t= 0.2, x0 = [-3.1, 3.1], x1 = [-2 , 2]):
 
     def nl_pendulum_deriv(x_y, t0):
         """Compute the time-derivative."""
@@ -112,9 +112,9 @@ def nl_pendulum(N = 10, max_time = 10, delta_t= 0.2, x0 = [-2, -0.8], x1 = [-1.5
 def difference(x_true, x_pred):
     diff = x_true - x_pred
     per = np.abs((diff / x_true) * 100)
-    print(per)
+    #print(per)
     per = np.log10(per)
-    print(per)
+    #print(per)
     per[per == -np.inf] = 0
     return per
 

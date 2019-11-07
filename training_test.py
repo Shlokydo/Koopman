@@ -5,11 +5,11 @@ import numpy as np
 import sys
 import os
 
-import network_arch as net 
+import network_arch_2 as net 
 import Helperfunction as helpfunc 
 from plot import plot_figure, plot_diff, animate
 
-def test(parameter_list, model, time_steps = 5, N_traj = 3):
+def test(parameter_list, model, time_steps = 40, N_traj = 20):
 
     time, x_t_true = helpfunc.nl_pendulum(N= N_traj)
     prediction_list_global = []
@@ -26,12 +26,14 @@ def test(parameter_list, model, time_steps = 5, N_traj = 3):
         prediction_list_global.append(prediction_list_local)
 
     x_t = np.asarray(prediction_list_global)
+    # print(x_t.shape)
+    # print(x_t_true.shape)
     x_diff = helpfunc.difference(x_t_true[:,:time_steps+1,:], x_t)
-    plot_diff(x_diff[:,:,0], time, True, './x_variable.png')
-    plot_diff(x_diff[:,:,1], time, True, './y_variable.png')
+    plot_diff(x_diff[:,:,0], time, True, parameter_list['checkpoint_expdir']+'/media/x_variable.png')
+    plot_diff(x_diff[:,:,1], time, True, parameter_list['checkpoint_expdir']+'/media/y_variable.png')
     x_t_true = np.concatenate((x_t_true[:,:time_steps+1,:], x_t), axis=0)
-    animate(x_t_true)
-    plot_figure(x_t_true, True)
+    plot_figure(x_t_true, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png')
+    animate(x_t_true, parameter_list['checkpoint_expdir'] + '/media/video.mp4')
     return None
 
 def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer):
@@ -250,6 +252,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 def traintest(parameter_list, flag):
 
     #Code for training
+    print(parameter_list)
     model = get_model(parameter_list)
     #Creating the learning rate scheduler
     learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'],decay_steps = parameter_list['lr_decay_steps'], decay_rate = 0.96, staircase = True)
@@ -266,7 +269,7 @@ def traintest(parameter_list, flag):
     save_directory = parameter_list['checkpoint_dir']
     manager = tf.train.CheckpointManager(checkpoint, directory= save_directory, 
                                         max_to_keep= parameter_list['max_checkpoint_keep'])
-    checkpoint.restore(manager.latest_checkpoint)
+    checkpoint.restore(manager.latest_checkpoint).expect_partial()
 
     #Checking if previous checkpoint exists
     if manager.latest_checkpoint:
