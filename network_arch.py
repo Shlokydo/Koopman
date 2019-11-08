@@ -220,18 +220,18 @@ class Koopman_RNN(tf.keras.Model):
         next_state_space, input_reconstruct, k_embeddings_cur, k_jordan_output = self.preliminary_net(inputs)
         
         #This part contributes towards the mth prediction loss
-        next_state_space_mth = 0
-        if cal_mth_loss:
+        for_mth_iterations = inputs.shape[1] - self.mth_step
+        if tf.constant(cal_mth_loss):
             print("Tracing `then` branch")
-            for_mth_iterations = inputs.shape[1] - self.mth_step
             inputs_for_mth = inputs[:,:for_mth_iterations,:] 
 
             for i in range(self.mth_step):
                 next_state_space_mth, _, _, _ = self.preliminary_net(inputs_for_mth)
                 inputs_for_mth = next_state_space_mth
-        
+
+            next_state_space_mth = inputs_for_mth
         else:
             print("Tracing `else` branch")
-            next_state_space_mth = tf.zeros((inputs.shape[0], inputs.shape[1] - self.mth_step, inputs.shape[2]))
+            next_state_space_mth = tf.constant(0, dtype=tf.float32)
 
         return next_state_space, input_reconstruct, k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:], next_state_space_mth

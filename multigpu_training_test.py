@@ -9,6 +9,8 @@ import network_arch as net
 import Helperfunction as helpfunc 
 from plot import plot_figure, plot_diff, animate
 
+tf.autograph.set_verbosity(10)
+
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
 def test(parameter_list, model, time_steps = 5, N_traj = 3):
@@ -121,7 +123,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                     loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
                     loss = loss_mth_prediction
                 else:
-                    loss_mth_prediction = 0
+                    loss_mth_prediction = tf.constant(0, dtype=tf.float32)
                     loss = loss_next_prediction
                     
                 # loss = loss_next_prediction + (loss_mth_prediction / s_p)
@@ -148,7 +150,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
                 loss = loss_mth_prediction
             else:
-                loss_mth_prediction = 0
+                loss_mth_prediction = tf.constant(0, dtype=tf.float32)
                 loss = loss_next_prediction
                 
             # loss = loss_next_prediction + (loss_mth_prediction / s_p)
@@ -189,10 +191,9 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
         val_min = 0
         val_loss_min = parameter_list['val_min']
 
-        cal_mth_loss_flag = 0
-        cal_mth_loss_flag_val = 0
+        cal_mth_loss_flag = False
+        cal_mth_loss_flag_val = False
         mth_loss_calculation_manipulator = parameter_list['mth_no_cal_epochs']
-        s_p = parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1
 
         with summary_writer.as_default():
 
@@ -209,12 +210,12 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 if not((global_epoch) % mth_loss_calculation_manipulator):
                     if not(cal_mth_loss_flag_val):
                         print('\nStarting calculating mth prediction loss\n')
-                        cal_mth_loss_flag = 1
-                        cal_mth_loss_flag_val = 1
+                        cal_mth_loss_flag = True
+                        cal_mth_loss_flag_val = True
                         mth_loss_calculation_manipulator = parameter_list['mth_cal_patience']
                     else:
-                        cal_mth_loss_flag = 0
-                        cal_mth_loss_flag_val = 0
+                        cal_mth_loss_flag = False
+                        cal_mth_loss_flag_val = False
                         mth_loss_calculation_manipulator = parameter_list['mth_no_cal_epochs']
                         print('\nStopping calulation of mth prediction loss\n')
 
@@ -302,11 +303,7 @@ def traintest(parameter_list, flag):
 
     #Get the Model
     with mirrored_strategy.scope():
-    #    if os.path.exists(parameter_list['model_loc']):
-    #        print('\nLoading saved model...\n')
-    #        j_string = helpfunc.read_json(parameter_list['model_loc'])
-    #        model = tf.keras.models.model_from_json(j_string)
-    #    else:
+
         model = net.Koopman_RNN(parameter_list = parameter_list)
 
         #Defining Model compiling parameters
