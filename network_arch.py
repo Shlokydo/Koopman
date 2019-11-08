@@ -16,22 +16,14 @@ class encoder(tf.keras.layers.Layer):
         
     def build(self, input_shape):
         for i in range(self.width):
-            self.encoder_layer.append(tf.keras.layers.LSTM(units= self.units, activation= self.activation,
-                                                      recurrent_activation = 'sigmoid', return_sequences = True))
-                                                      #kernel_regularizer = tf.keras.regularizers.l2(0.01),
-                                                      #dropout = 0))
+            self.encoder_layer.append(tf.keras.layers.LSTM(units= self.units, activation= self.activation, recurrent_activation = 'sigmoid', return_sequences = True))
             
-        self.encoder_layer.append(tf.keras.layers.LSTM(units= self.output_units, activation= self.activation,
-                                                      recurrent_activation = 'sigmoid', return_sequences = True))
-                                                      #kernel_regularizer = tf.keras.regularizers.l2(0.01),
-                                                      #dropout = 0))
+        self.encoder_layer.append(tf.keras.layers.LSTM(units= self.output_units, activation= self.activation, recurrent_activation = 'sigmoid', return_sequences = True))
+
+        self.layers = tf.keras.Sequential(self.encoder_layer)
+
     def call(self, inputs):
-        for i in range(len(self.encoder_layer)):
-            if i == 0:
-                x = self.encoder_layer[i](inputs)
-            else:
-                x = self.encoder_layer[i](x)
-        return x
+        return self.layers(inputs)
     
     def get_config(self):
         configuration = {'Units' : self.units,
@@ -55,32 +47,17 @@ class decoder(tf.keras.layers.Layer):
         
     def build(self, input_shape):
         for i in range(self.width):
-            # self.decoder_layer.append(tf.keras.layers.LSTM(units= self.units, activation= self.activation,
-                                                    #   recurrent_activation = 'sigmoid', return_sequences = True))
-                                                      #kernel_regularizer = tf.keras.regularizers.l2(0.01),
-                                                      #dropout = 0))
-            self.decoder_layer.append(tf.keras.layers.Dense(units= self.units,
-                                                            activation= None))
-            # self.decoder_layer.append(tf.keras.layers.PReLU(alpha_initializer='zeros'))
-            self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
-            
-        # self.decoder_layer.append(tf.keras.layers.LSTM(units= self.output_units, activation= self.activation,
-                                                    #   recurrent_activation = 'sigmoid', return_sequences = True))
-                                                      #kernel_regularizer = tf.keras.regularizers.l2(0.01),
-                                                      #dropout = 0))
 
-        self.decoder_layer.append(tf.keras.layers.Dense(units= self.output_units,
-                                                            activation= None))
-        # self.decoder_layer.append(tf.keras.layers.PReLU(alpha_initializer='zeros'))
+            self.decoder_layer.append(tf.keras.layers.Dense(units= self.units, activation= None))
+            self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
+
+        self.decoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
         self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
-            
+        
+        self.layers = tf.keras.Sequential(self.decoder_layer)
+
     def call(self, inputs):
-        for i in range(len(self.decoder_layer)):
-            if i == 0:
-                x = self.decoder_layer[i](inputs)
-            else:
-                x = self.decoder_layer[i](x)
-        return x
+        return self.layers(inputs)
     
     def get_config(self):
         configuration = {'Units' : self.units,
@@ -104,15 +81,13 @@ class koopman_aux_net(tf.keras.layers.Layer):
     def build(self, input_shape):
         if self.output_units_real:
             for i in range(self.width):
-                self.koopman_layer_real.append(tf.keras.layers.Dense(units= self.units,
-                                                                activation= None))
-                                                                #kernel_regularizer = tf.keras.regularizers.l2(0.01)))
+                self.koopman_layer_real.append(tf.keras.layers.Dense(units= self.units, activation= None))
                 self.koopman_layer_real.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
                 
-            self.koopman_layer_real.append(tf.keras.layers.Dense(units= self.output_units_real, 
-                                                        activation= None))
-                                                       #kernel_regularizer = tf.keras.regularizers.l2(0.01)))
+            self.koopman_layer_real.append(tf.keras.layers.Dense(units= self.output_units_real, activation= None))
             self.koopman_layer_real.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
+
+            self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
             
         if self.output_units_complex:
             for i in range(self.width):
@@ -125,6 +100,8 @@ class koopman_aux_net(tf.keras.layers.Layer):
                                                         activation= None))
                                                        #kernel_regularizer = tf.keras.regularizers.l2(0.01)))
             self.koopman_layer_complex.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
+
+            self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
         
     def call(self, inputs):
         
@@ -133,17 +110,11 @@ class koopman_aux_net(tf.keras.layers.Layer):
         # print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
         input_real, input_complex = tf.split(inputs, [self.output_units_real, self.output_units_complex], axis= 2)
         
-        for i in range(len(self.koopman_layer_real)):
-            if i == 0:
-                x = self.koopman_layer_real[i](input_real)
-            else:
-                x = self.koopman_layer_real[i](x)
+        if input_real.shape[2]:
+            x = self.real_layers(input_real)
 
-        for i in range(len(self.koopman_layer_complex)):
-            if i == 0:
-                y = self.koopman_layer_complex[i](input_complex)
-            else:
-                y = self.koopman_layer_complex[i](y)
+        if input_complex.shape[2]:
+            y = self.complex_layers(input_complex)
     
         if x:
             if y:
@@ -209,21 +180,19 @@ class koopman_jordan(tf.keras.layers.Layer):
                 
         return tf.concat([y_real_tensor, y_complex_tensor], axis = 2)
 
-#Code for creating the network model
-class Koopman_RNN(tf.keras.Model):
+class preliminary_net(tf.keras.layers.Layer):
 
     def __init__(self, parameter_list, **kwargs):
-        super(Koopman_RNN, self).__init__()
+        super(preliminary_net, self).__init__()
         self.encoder = encoder(parameter_list)
         self.koopman_aux_net = koopman_aux_net(parameter_list)
         self.koopman_jordan = koopman_jordan(parameter_list)
         self.decoder = decoder(parameter_list)
-        self.mth_step = parameter_list['mth_step']
         self.recon_hp = parameter_list['recon_hp']
         self.timesteps = parameter_list['num_timesteps'] - 1
         self.batchsize = parameter_list['Batch_size']
 
-    def call(self, inputs, cal_mth_loss = False):
+    def call(self, inputs):
 
         #This part contributes towards the (n+1)th prediction loss from nth
         k_embeddings_cur = self.encoder(inputs)
@@ -232,47 +201,37 @@ class Koopman_RNN(tf.keras.Model):
         k_jordan_input = tf.concat([k_omegas, k_embeddings_cur], axis= 2)
         k_jordan_output = self.koopman_jordan(k_jordan_input)
 
-        next_state_space = self.decoder(k_jordan_output)
-
-        #This part contributes towards the reconstruction loss
-        input_reconstruct = self.decoder(k_embeddings_cur)
-        reconstruct_loss = tf.reduce_sum(tf.reduce_sum(tf.square(tf.subtract(input_reconstruct, inputs)),1)) / tf.reduce_mean(tf.reduce_mean(tf.square(inputs),1))
-        reconstruct_loss = reconstruct_loss * (1.0 / (self.timesteps * self.batchsize))
-
-        #This part contributes towards the linearization loss
-        linearization_loss = tf.reduce_sum(tf.reduce_sum(tf.square(tf.subtract(k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:])), 1))
-        linearization_loss = linearization_loss * (1.0 / (self.timesteps * self.batchsize))
+        next_state_space = self.decoder(k_jordan_output) + inputs
         
-        reconst_linear_loss = self.recon_hp * reconstruct_loss + linearization_loss
-        self.add_loss(reconst_linear_loss)
-        next_state_space_mth_list = []
+        input_reconstruct = self.decoder(k_embeddings_cur)
+        
+        return next_state_space, input_reconstruct, k_embeddings_cur, k_jordan_output
+
+#Code for creating the network model
+class Koopman_RNN(tf.keras.Model):
+
+    def __init__(self, parameter_list, **kwargs):
+        super(Koopman_RNN, self).__init__()
+        self.preliminary_net = preliminary_net(parameter_list)
+        self.mth_step = parameter_list['mth_step']
+
+    def call(self, inputs, cal_mth_loss = False):
+
+        next_state_space, input_reconstruct, k_embeddings_cur, k_jordan_output = self.preliminary_net(inputs)
         
         #This part contributes towards the mth prediction loss
+        next_state_space_mth = 0
         if cal_mth_loss:
+            print("Tracing `then` branch")
             for_mth_iterations = inputs.shape[1] - self.mth_step
+            inputs_for_mth = inputs[:,:for_mth_iterations,:] 
 
-            for j in range(for_mth_iterations):
-                inputs_for_mth = inputs[:,j,:] 
-                inputs_for_mth = tf.expand_dims(inputs_for_mth, axis=1)
+            for i in range(self.mth_step):
+                next_state_space_mth, _, _, _ = self.preliminary_net(inputs_for_mth)
+                inputs_for_mth = next_state_space_mth
+        
+        else:
+            print("Tracing `else` branch")
+            next_state_space_mth = tf.zeros((inputs.shape[0], inputs.shape[1] - self.mth_step, inputs.shape[2]))
 
-                for i in range(self.mth_step):
-                    k_embeddings_cur_mth = self.encoder(inputs_for_mth) 
-
-                    k_omegas_mth = self.koopman_aux_net(k_embeddings_cur_mth)
-                    k_jordan_input_mth = tf.concat([k_omegas_mth, k_embeddings_cur_mth], axis= 2)
-                    k_jordan_output_mth = self.koopman_jordan(k_jordan_input_mth)
-                    
-                    next_state_space_mth = self.decoder(k_jordan_output_mth)
-
-                    inputs_for_mth = next_state_space_mth
-
-                next_state_space_mth_list.append(next_state_space_mth)
-            next_state_space_mth_list = tf.stack(next_state_space_mth_list)
-            next_state_space_mth_list = tf.squeeze(next_state_space_mth_list)
-            next_state_space_mth_list = tf.transpose(next_state_space_mth_list, perm=[1,0,2])
-
-        reconst_linear_loss = self.recon_hp * reconstruct_loss + linearization_loss
-
-        self.add_loss(reconst_linear_loss)
-
-        return next_state_space, reconstruct_loss, linearization_loss, next_state_space_mth_list
+        return next_state_space, input_reconstruct, k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:], next_state_space_mth

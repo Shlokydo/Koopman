@@ -32,6 +32,7 @@ parameter_list['num_timesteps'] = 51   #Next version, need to read it from the d
 parameter_list['num_validation_points'] = 2048
 parameter_list['input_scaling'] = 1
 parameter_list['delta_t'] = 0.2
+parameter_list['inputs'] = 2
 
 parameter_list['num_real'] = 0                          #Number of real Koopman eigenvalues
 parameter_list['num_complex_pairs'] = 1                 #Number of complex conjugate eigenvalues
@@ -74,7 +75,7 @@ parameter_list['dropout'] = 0.0                         #Dropout for the layers
 parameter_list['early_stop_patience'] = 600               #Patience in num of epochs for early stopping
 parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
 parameter_list['mth_cal_patience'] = 1                  #number of epochs after which mth loss is calculated
-parameter_list['mth_no_cal_epochs'] = 1                #Number of epochs for which mth loss is not calculated
+parameter_list['mth_no_cal_epochs'] = 10                #Number of epochs for which mth loss is not calculated
 parameter_list['recon_hp'] = 0.001
 parameter_list['global_epoch'] = 0
 parameter_list['val_min'] = 100

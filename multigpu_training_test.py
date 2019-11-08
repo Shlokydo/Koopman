@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import os
 
-import network_arch_baka as net 
+import network_arch as net 
 import Helperfunction as helpfunc 
 from plot import plot_figure, plot_diff, animate
 
@@ -110,10 +110,13 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             with tf.GradientTape() as tape:
 
                 (t_current, t_next_actual), cal_mth_loss_flag = inputs
-                t_next_predicted, reconstruction_loss, linearization_loss, t_mth_predictions = model(t_current, cal_mth_loss = cal_mth_loss_flag)
+                t_next_predicted, t_reconstruction, t_embedding, t_jordan, t_mth_predictions = model(t_current, cal_mth_loss = cal_mth_loss_flag)
 
                 #Calculating relative loss
-                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted) #/ tf.reduce_mean(tf.square(t_next_actual))
+                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted) 
+                reconstruction_loss = compute_loss(t_current, t_reconstruction)
+                linearization_loss = compute_loss(t_embedding, t_jordan)
+                
                 if cal_mth_loss_flag:
                     loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
                     loss = loss_mth_prediction
@@ -124,30 +127,36 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 # loss = loss_next_prediction + (loss_mth_prediction / s_p)
                 loss += sum(model.losses)
             
-            gradients = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, model.trainable_weights))
-
             metric_device = compute_metric(t_next_actual, t_next_predicted)
+
+            gradients = tape.gradient([loss, reconstruction_loss, linearization_loss], model.trainable_variables)
+            optimizer.apply_gradients(zip(gradients, model.trainable_weights))
 
             return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
 
         def val_step(inputs):
-            (t_current_val, t_next_actual_val), cal_mth_loss_flag_val = inputs
+            (t_current, t_next_actual), cal_mth_loss_flag_val = inputs
 
-            t_next_predicted_val, reconstruction_loss_val, linearization_loss_val, t_mth_predictions_val = model(t_current_val, cal_mth_loss = cal_mth_loss_flag_val)
+            t_next_predicted, t_reconstruction, t_embedding, t_jordan, t_mth_predictions = model(t_current, cal_mth_loss = cal_mth_loss_flag_val)
 
-            val_loss_next_prediction = compute_loss(t_next_predicted_val, t_next_actual_val)
+            #Calculating relative loss
+            loss_next_prediction = compute_loss(t_next_actual, t_next_predicted) 
+            reconstruction_loss = compute_loss(t_current, t_reconstruction)
+            linearization_loss = compute_loss(t_embedding, t_jordan)
+            
             if cal_mth_loss_flag_val:
-                val_loss_mth_prediction = loss_func(t_mth_predictions_val, t_next_actual_val[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
+                loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
+                loss = loss_mth_prediction
             else:
-                val_loss_mth_prediction = 0
+                loss_mth_prediction = 0
+                loss = loss_next_prediction
+                
+            # loss = loss_next_prediction + (loss_mth_prediction / s_p)
+            loss += sum(model.losses)
+        
+            metric_device = compute_metric(t_next_actual, t_next_predicted)
 
-            val_loss = val_loss_next_prediction
-            val_loss += sum(model.losses)
-
-            val_metric_device = compute_metric(t_next_predicted_val, t_next_actual_val)
-
-            return val_loss, val_metric_device, reconstruction_loss_val, linearization_loss_val, val_loss_mth_prediction
+            return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
 
         @tf.function
         def distributed_train(inputs):
