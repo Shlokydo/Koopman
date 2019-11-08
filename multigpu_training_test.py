@@ -102,7 +102,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
         def compute_loss(labels, predictions):
             per_example_loss = loss_func(labels, predictions)
-            return per_example_loss * (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - 1)))
+            return per_example_loss / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - 1))
 
         def compute_metric(labels, predictions):
             per_example_metric = metric(labels, predictions)
@@ -120,7 +120,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                 linearization_loss = compute_loss(t_embedding, t_jordan)
                 
                 if cal_mth_loss_flag:
-                    loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
+                    loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step']))
                     loss = loss_mth_prediction
                 else:
                     loss_mth_prediction = tf.constant(0, dtype=tf.float32)
@@ -147,7 +147,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             linearization_loss = compute_loss(t_embedding, t_jordan)
             
             if cal_mth_loss_flag_val:
-                loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (1.0 / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'])))
+                loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step']))
                 loss = loss_mth_prediction
             else:
                 loss_mth_prediction = tf.constant(0, dtype=tf.float32)

@@ -47,7 +47,6 @@ class decoder(tf.keras.layers.Layer):
         
     def build(self, input_shape):
         for i in range(self.width):
-
             self.decoder_layer.append(tf.keras.layers.Dense(units= self.units, activation= None))
             self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
@@ -188,9 +187,6 @@ class preliminary_net(tf.keras.layers.Layer):
         self.koopman_aux_net = koopman_aux_net(parameter_list)
         self.koopman_jordan = koopman_jordan(parameter_list)
         self.decoder = decoder(parameter_list)
-        self.recon_hp = parameter_list['recon_hp']
-        self.timesteps = parameter_list['num_timesteps'] - 1
-        self.batchsize = parameter_list['Batch_size']
 
     def call(self, inputs):
 
@@ -213,19 +209,20 @@ class Koopman_RNN(tf.keras.Model):
     def __init__(self, parameter_list, **kwargs):
         super(Koopman_RNN, self).__init__()
         self.preliminary_net = preliminary_net(parameter_list)
-        self.mth_step = parameter_list['mth_step']
+        self.mth_step = tf.constant(parameter_list['mth_step'])
 
     def call(self, inputs, cal_mth_loss = False):
 
         next_state_space, input_reconstruct, k_embeddings_cur, k_jordan_output = self.preliminary_net(inputs)
         
         #This part contributes towards the mth prediction loss
-        for_mth_iterations = inputs.shape[1] - self.mth_step
+        for_mth_iterations = tf.constant(inputs.shape[1] - self.mth_step)
         if tf.constant(cal_mth_loss):
             print("Tracing `then` branch")
             inputs_for_mth = inputs[:,:for_mth_iterations,:] 
-
-            for i in range(self.mth_step):
+            next_state_space_mth = tf.zeros_like(inputs_for_mth)
+            
+            for i in tf.range(self.mth_step):
                 next_state_space_mth, _, _, _ = self.preliminary_net(inputs_for_mth)
                 inputs_for_mth = next_state_space_mth
 
