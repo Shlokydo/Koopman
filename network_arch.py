@@ -158,11 +158,11 @@ class koopman_jordan(tf.keras.layers.Layer):
             entry_1 = tf.multiply(scale_complex, tf.cos(omegas_complex_vec[:, :, index + 1: index + 2] * self.delta_t))
             entry_2 = tf.multiply(scale_complex, tf.sin(omegas_complex_vec[:, :, index + 1: index + 2] * self.delta_t))
             row_1 = tf.stack([entry_1, -entry_2], axis=2)
-            row_1 = tf.reshape(row_1, [row_1.shape[0], row_1.shape[1], row_1.shape[2]])
-            
+            row_1 = tf.squeeze(row_1)
+
             row_2 = tf.stack([entry_2, entry_1], axis=2)
-            row_2 = tf.reshape(row_2, [row_2.shape[0], row_2.shape[1], row_2.shape[2]])
-            
+            row_2 = tf.squeeze(row_2)
+
             jordan_matrix = tf.stack([row_1, row_2], axis = 3)
             
             y_jordan_output = tf.stack([y[:, :, index:index+2], y[:, :, index:index+2]], axis = 3)
@@ -197,7 +197,7 @@ class preliminary_net(tf.keras.layers.Layer):
         k_jordan_input = tf.concat([k_omegas, k_embeddings_cur], axis= 2)
         k_jordan_output = self.koopman_jordan(k_jordan_input)
 
-        next_state_space = self.decoder(k_jordan_output) + inputs
+        next_state_space = self.decoder(k_jordan_output)
         
         input_reconstruct = self.decoder(k_embeddings_cur)
         
@@ -216,7 +216,7 @@ class Koopman_RNN(tf.keras.Model):
         next_state_space, input_reconstruct, k_embeddings_cur, k_jordan_output = self.preliminary_net(inputs)
         
         #This part contributes towards the mth prediction loss
-        for_mth_iterations = tf.constant(inputs.shape[1] - self.mth_step)
+        for_mth_iterations = inputs.shape[1] - self.mth_step
         if tf.constant(cal_mth_loss):
             print("Tracing `then` branch")
             inputs_for_mth = inputs[:,:for_mth_iterations,:] 
