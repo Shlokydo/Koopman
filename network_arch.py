@@ -157,13 +157,15 @@ class koopman_jordan(tf.keras.layers.Layer):
             scale_complex = tf.exp(omegas_complex_vec[:, :, index:index + 1] * self.delta_t)
             entry_1 = tf.multiply(scale_complex, tf.cos(omegas_complex_vec[:, :, index + 1: index + 2] * self.delta_t))
             entry_2 = tf.multiply(scale_complex, tf.sin(omegas_complex_vec[:, :, index + 1: index + 2] * self.delta_t))
+            
             row_1 = tf.stack([entry_1, -entry_2], axis=2)
-            row_1 = tf.squeeze(row_1)
+            row_1 = tf.squeeze(row_1, 3)
 
             row_2 = tf.stack([entry_2, entry_1], axis=2)
-            row_2 = tf.squeeze(row_2)
+            row_2 = tf.squeeze(row_2, 3)
 
             jordan_matrix = tf.stack([row_1, row_2], axis = 3)
+            print(jordan_matrix.shape)
             
             y_jordan_output = tf.stack([y[:, :, index:index+2], y[:, :, index:index+2]], axis = 3)
             y_jordan_output = tf.multiply(jordan_matrix, y_jordan_output)
@@ -217,16 +219,23 @@ class Koopman_RNN(tf.keras.Model):
         
         #This part contributes towards the mth prediction loss
         for_mth_iterations = inputs.shape[1] - self.mth_step
+        next_state_space_mth = tf.TensorArray(tf.float32, size=for_mth_iterations)
         if tf.constant(cal_mth_loss):
             print("Tracing `then` branch")
-            inputs_for_mth = inputs[:,:for_mth_iterations,:] 
-            next_state_space_mth = tf.zeros_like(inputs_for_mth)
-            
-            for i in tf.range(self.mth_step):
-                next_state_space_mth, _, _, _ = self.preliminary_net(inputs_for_mth)
-                inputs_for_mth = next_state_space_mth
+            for i in tf.range(for_mth_iterations):
+                inputs_for_mth = inputs[:,i,:] 
+                inputs_for_mth = tf.expand_dims(inputs_for_mth, axis=1)
+                next_state_space_mth_ = tf.zeros_like(inputs_for_mth)
+                
+                for j in tf.range(self.mth_step):
+                    next_state_space_mth_, _, _, _ = self.preliminary_net(inputs_for_mth)
+                    inputs_for_mth = next_state_space_mth_
+                
+                next_state_space_mth = next_state_space_mth.write(i, next_state_space_mth_)
 
-            next_state_space_mth = inputs_for_mth
+            next_state_space_mth = next_state_space_mth.stack()
+            next_state_space_mth = tf.squeeze(next_state_space_mth)
+            next_state_space_mth = tf.transpose(next_state_space_mth, [1, 0, 2])
         else:
             print("Tracing `else` branch")
             next_state_space_mth = tf.constant(0, dtype=tf.float32)
