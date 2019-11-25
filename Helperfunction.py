@@ -94,7 +94,6 @@ def nl_pendulum(N = 10, max_time = 10, delta_t= 0.2, x0 = [-3.1, 3.1], x1 = [-2 
         return [y, -np.sin(x)]
 
     x = np.resize(np.linspace(x0[0], x0[1], num = N),(N,1))
-    np.random.shuffle(x)
     x = np.insert(x, 1, np.resize(np.linspace(x1[0], x1[1], num = N),(N,1)).T, axis=1)
     # Solve for the trajectories
     time = np.arange(0, max_time+delta_t, delta_t)
