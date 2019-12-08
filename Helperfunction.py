@@ -10,8 +10,8 @@ import datetime
 from pathlib import Path
 
 #Code for importing the Dataset from the HDF5 file
-def import_datset(key):
-    dataframe = pd.read_hdf('Dataset.h5', key = key)
+def import_datset(dataset, key):
+    dataframe = pd.read_hdf(dataset, key = key)
     return dataframe
 
 #Code for converting the dataframe into numpy arrays
@@ -107,6 +107,21 @@ def nl_pendulum(N = 10, max_time = 10, delta_t= 0.2, x0 = [-3.1, 3.1], x1 = [-2 
     x_t_new = np.asarray(x_t_new)
 
     return time, x_t_new
+
+def discrete_solve(N = 10, mu = 5, _lambda = 2, max_time = 30, delta_t = 0.02, x0 = [-0.5, 0.5], x1 = [-0.5 , 0.5]): 
+    
+    x0 = np.resize(np.random.uniform(x0[0], x0[1], N),(N,1))
+    x0 = np.insert(x0, 1, np.resize(np.random.uniform(x1[1], x1[0], N),(N,1)).T, axis=1)
+
+    def discrete_deriv(x_y, t0, mu = mu, _lambda = _lambda):
+        """Compute the time-derivative of a Lorenz system."""
+        x, y = x_y
+        return [mu * x, _lambda * (y - (x*x))]
+
+    time = np.arange(0, max_time+delta_t, delta_t)
+    x_t = np.asarray([integrate.odeint(discrete_deriv, x0i, time) for x0i in x0])
+
+    return time, x_t
 
 def difference(x_true, x_pred):
     diff = x_true - x_pred

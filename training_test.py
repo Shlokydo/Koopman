@@ -26,9 +26,7 @@ def test(parameter_list, model, time_steps = 40, N_traj = 20):
         prediction_list_global.append(prediction_list_local)
 
     x_t = np.asarray(prediction_list_global)
-    # print(x_t.shape)
-    # print(x_t_true.shape)
-    x_diff = helpfunc.difference(x_t_true[:,:time_steps+1,:], x_t)
+    x_diff = helpfunc.difference(x_t_true[:,2:time_steps+1,:], x_t[:,2:,:])
     plot_diff(x_diff[:,:,0], time, True, parameter_list['checkpoint_expdir']+'/media/x_variable.png')
     plot_diff(x_diff[:,:,1], time, True, parameter_list['checkpoint_expdir']+'/media/y_variable.png')
     x_t_true = np.concatenate((x_t_true[:,:time_steps+1,:], x_t), axis=0)
@@ -252,7 +250,6 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 def traintest(parameter_list, flag):
 
     #Code for training
-    print(parameter_list)
     model = get_model(parameter_list)
     #Creating the learning rate scheduler
     learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'],decay_steps = parameter_list['lr_decay_steps'], decay_rate = 0.96, staircase = True)
@@ -267,14 +264,14 @@ def traintest(parameter_list, flag):
     #Creating checkpoint instance
     checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), optimizer = optimizer, model = model)
     save_directory = parameter_list['checkpoint_dir']
-    manager = tf.train.CheckpointManager(checkpoint, directory= save_directory, 
+    manager = tf.train.CheckpointManager(checkpoint, directory= save_directory,
                                         max_to_keep= parameter_list['max_checkpoint_keep'])
     checkpoint.restore(manager.latest_checkpoint).expect_partial()
 
     #Checking if previous checkpoint exists
     if manager.latest_checkpoint:
         print("Restored from {} \n".format(manager.latest_checkpoint))
-        
+
         if flag == 'test':
             print('Starting testing...')
             test(parameter_list, model)
@@ -283,25 +280,21 @@ def traintest(parameter_list, flag):
         if flag == 'train':
             print('Starting training of Experiment: {}... \n'.format(parameter_list['Experiment_No']))
             return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
-            
+
     else:
         print("No checkpoint exists.")
-        
+
         if flag == 'test':
             print('Cannot test as no checkpoint exists. Exiting...')
             return parameter_list['global_epoch']
-        
+
         if flag == 'train':
             print('Initializing from scratch for Experiment: {}... \n'.format(parameter_list['Experiment_No']))
             return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
 def get_model(parameter_list):
 
-    #if os.path.exists(parameter_list['model_loc']):
-    #    print('\nLoading saved model...\n')
-    #    j_string = helpfunc.read_json(parameter_list['model_loc'])
-    #    model = tf.keras.models.model_from_json(j_string)
-    #else:
+    print(parameter_list)
     model = net.Koopman_RNN(parameter_list)
 
     return model
