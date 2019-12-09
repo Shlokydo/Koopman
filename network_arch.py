@@ -2,23 +2,23 @@ import numpy as np
 import tensorflow as tf
 
 #Code for encoder layer
-
-class encoder(tf.keras.layers.Layer):
+class encoder(tf.keras.Model):
 
     def __init__(self, parameter_list, name= 'ENCODER', return_seq = True):
         super(encoder, self).__init__()
         self.units = parameter_list['en_units']
         self.width = parameter_list['en_width'] - 1
         self.initializer = parameter_list['en_initializer']
-        self.activation = parameter_list['en_activation']
         self.output_units = parameter_list['num_evals']
         self.encoder_layer = []
 
     def build(self, input_shape):
         for i in range(self.width):
-            self.encoder_layer.append(tf.keras.layers.LSTM(units= self.units, activation= self.activation, recurrent_activation = 'sigmoid', return_sequences = True))
+            self.encoder_layer.append(tf.keras.layers.Dense(units= self.units, activation= None))
+            self.encoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
-        self.encoder_layer.append(tf.keras.layers.LSTM(units= self.output_units, activation= self.activation, recurrent_activation = 'sigmoid', return_sequences = True))
+        self.encoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
+        self.encoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
         self.layers = tf.keras.Sequential(self.encoder_layer)
 
@@ -33,15 +33,13 @@ class encoder(tf.keras.layers.Layer):
         return configuration
 
 #Code for decoder layer
-
-class decoder(tf.keras.layers.Layer):
+class decoder(tf.keras.Model):
 
     def __init__(self, parameter_list, name= 'DECODER', return_seq = True):
         super(decoder, self).__init__()
         self.units = parameter_list['de_units']
         self.width = parameter_list['de_width'] - 1
         self.initializer = parameter_list['de_initializer']
-        self.activation = parameter_list['de_activation']
         self.output_units = parameter_list['de_output_units']
         self.decoder_layer = []
 
@@ -66,41 +64,33 @@ class decoder(tf.keras.layers.Layer):
         return configuration
 
 #Code for Koopman Operator Auxilary Network
-class koopman_aux_net(tf.keras.layers.Layer):
+class koopman_aux_net(tf.keras.Model):
 
     def __init__(self, parameter_list):
         super(koopman_aux_net, self).__init__()
         self.width = parameter_list['kaux_width']
         self.units = parameter_list['kaux_units']
+        self.activation = parameter_list['kp_activation']
         self.koopman_layer_real = []
         self.koopman_layer_complex = []
         self.output_units_real = parameter_list['kaux_output_units_real']
         self.output_units_complex = parameter_list['kaux_output_units_complex']
+        self.stateful = parameter_list['stateful']
 
     def build(self, input_shape):
         #if self.output_units_real:
         for i in range(self.width):
-            self.koopman_layer_real.append(tf.keras.layers.Dense(units= self.units, activation= None))
-            self.koopman_layer_real.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
-
-        self.koopman_layer_real.append(tf.keras.layers.Dense(units= self.output_units_real, activation= None))
-        self.koopman_layer_real.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
+            self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
+        self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
 
         self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
 
         #if self.output_units_complex:
         for i in range(self.width):
-            self.koopman_layer_complex.append(tf.keras.layers.Dense(units= self.units,
-                                                            activation= None))
-                                                            #kernel_regularizer = tf.keras.regularizers.l2(0.01)))
-            self.koopman_layer_complex.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
+            self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
+        self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
 
-        self.koopman_layer_complex.append(tf.keras.layers.Dense(units= self.output_units_complex,
-                                                    activation= None))
-                                                    #kernel_regularizer = tf.keras.regularizers.l2(0.01)))
-        self.koopman_layer_complex.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
-
-        self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
+        self.complex_layers = tf.keras.Sequential(self.koopman_layer_real)
 
     def call(self, inputs):
 
@@ -120,9 +110,8 @@ class koopman_aux_net(tf.keras.layers.Layer):
             return configuration
 
 #Code for Koopman Jordarn matrix, input to the layer would be the concatenated omegas for real and complex
-#eigenvalues and Koopman embddings (y) from the encoder layer
-
-class koopman_jordan(tf.keras.layers.Layer):
+#eigenvalues and Koopman embddings (y) from the encoder layer 
+class koopman_jordan(tf.keras.Model):
 
     def __init__(self, parameter_list):
         super(koopman_jordan, self).__init__()
@@ -169,7 +158,7 @@ class koopman_jordan(tf.keras.layers.Layer):
 
         return tf.concat([y_real_tensor, y_complex_tensor], axis = 2)
 
-class preliminary_net(tf.keras.layers.Layer):
+class preliminary_net(tf.keras.Model):
 
     def __init__(self, parameter_list, **kwargs):
         super(preliminary_net, self).__init__()

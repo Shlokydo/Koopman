@@ -130,6 +130,8 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             gradients = tape.gradient([loss, 3*loss_mth_prediction, linearization_loss], model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_weights))
 
+            model.reset_states()
+
             return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
 
         def val_step(inputs):
@@ -149,6 +151,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             loss = loss_next_prediction
 
             metric_device = compute_metric(t_next_actual, t_next_predicted)
+            model.reset_states()
 
             return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
 

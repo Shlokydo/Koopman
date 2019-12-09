@@ -39,7 +39,7 @@ parameter_list['dataset'] = args.dataset + '.h5'
 
 parameter_list['num_real'] = 2                          #Number of real Koopman eigenvalues
 parameter_list['num_complex_pairs'] = 0                 #Number of complex conjugate eigenvalues
-parameter_list['num_evals'] = 2
+parameter_list['num_evals'] = parameter_list['num_real'] + 2 * parameter_list['num_complex_pairs']
 
 parameter_list['experiments'] = args.experiment
 parameter_list['checkpoint_expdir'] = './{}'.format(args.key)
@@ -54,14 +54,17 @@ parameter_list['Buffer_size'] = 50000                    #Buffer size for shuffl
 #Encoder layer
 parameter_list['en_units'] = 25                         #Number of neurons in the encoder lstm layer
 parameter_list['en_width'] = 2                          #Number of lstm layers
-parameter_list['en_initializer'] = 'glorot_uniform'     #Initializer of layers
-parameter_list['en_activation'] = 'tanh'                #Activation of layers
+parameter_list['en_activation'] = 'relu'                #All same as encoder till here
+parameter_list['en_initializer'] = 'glorot_uniform'
 
 #Koopman auxilary network
 parameter_list['kaux_units'] = 5                                                     #Number of neurons in dense layers
 parameter_list['kaux_width'] = 2                                                      #Number of dense layers
 parameter_list['kaux_output_units_real'] = parameter_list['num_real']                 #Number of real outputs
 parameter_list['kaux_output_units_complex'] = parameter_list['num_complex_pairs'] * 2 #Number of complex outputs
+parameter_list['kp_initializer'] = 'glorot_uniform'     #Initializer of layers
+parameter_list['kp_activation'] = 'tanh'                #Activation of layers
+parameter_list['stateful'] = True
 
 #Decoder layer
 parameter_list['de_units'] = 25
