@@ -160,12 +160,12 @@ class koopman_jordan(tf.keras.Model):
 
 class preliminary_net(tf.keras.Model):
 
-    def __init__(self, parameter_list, **kwargs):
+    def __init__(self, encoder, decoder, k_net, k_jor, **kwargs):
         super(preliminary_net, self).__init__()
-        self.encoder = encoder(parameter_list)
-        self.koopman_aux_net = koopman_aux_net(parameter_list)
-        self.koopman_jordan = koopman_jordan(parameter_list)
-        self.decoder = decoder(parameter_list)
+        self.encoder = encoder
+        self.koopman_aux_net = k_net
+        self.koopman_jordan = k_jor
+        self.decoder = decoder
 
     def call(self, inputs):
 
