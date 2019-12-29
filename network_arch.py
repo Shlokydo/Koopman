@@ -180,7 +180,7 @@ class preliminary_net(tf.keras.Model):
 
         input_reconstruct = self.decoder(k_embeddings_cur)
 
-        return next_state_space, input_reconstruct, k_embeddings_cur, k_jordan_output
+        return next_state_space, input_reconstruct, k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:]
 
 class loop_net(tf.keras.Model):
 
@@ -216,37 +216,3 @@ class loop_net(tf.keras.Model):
         next_state_space_mth = tf.transpose(next_state_space_mth, [1, 0, 2])
 
         return next_state_space_mth
-
-#Code for creating the network model
-class Koopman_RNN(tf.keras.Model):
-
-    def __init__(self, parameter_list, **kwargs):
-        super(Koopman_RNN, self).__init__()
-        self.preliminary_net = preliminary_net(parameter_list)
-
-    def call(self, inputs, mth_step = 1):
-
-        next_state_space, input_reconstruct, k_embeddings_cur, k_jordan_output = self.preliminary_net(inputs)
-
-        #This part contributes towards the mth prediction loss
-        for_mth_iterations = inputs.shape[1] - mth_step
-        next_state_space_mth = tf.TensorArray(tf.float32, size=for_mth_iterations, element_shape = (inputs.shape[0], 1, inputs.shape[2]))
-        for i in tf.range(for_mth_iterations):
-            inputs_for_mth = inputs[:,i,:]
-            inputs_for_mth = tf.expand_dims(inputs_for_mth, axis=1)
-            next_state_space_mth_ = tf.zeros_like(inputs_for_mth)
-
-            for j in tf.range(mth_step):
-                next_state_space_mth_, _, _, _ = self.preliminary_net(inputs_for_mth)
-                inputs_for_mth = next_state_space_mth_
-
-            next_state_space_mth = next_state_space_mth.write(i, next_state_space_mth_)
-
-        try:
-            next_state_space_mth = next_state_space_mth.stack()
-            next_state_space_mth = tf.squeeze(next_state_space_mth)
-            next_state_space_mth = tf.transpose(next_state_space_mth, [1, 0, 2])
-        except:
-            next_state_space_mth = tf.constant(0, dtype=tf.float32)
-
-        return next_state_space, input_reconstruct, k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:], next_state_space_mth
