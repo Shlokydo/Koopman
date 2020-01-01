@@ -119,9 +119,12 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 reconstruction_loss = compute_loss(t_current, t_reconstruction)
                 linearization_loss = compute_loss(t_embedding, t_jordan)
 
+                preliminary_net.reset_states()
+
                 if mth_flag:
                     t_mth_predictions = loop_net(t_current)
                     loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step']))
+                    loop_net.reset_states()
                 else:
                     loss_mth_prediction = tf.constant(0, dtype=tf.float32)
                 loss = loss_next_prediction
@@ -130,8 +133,6 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
 
             gradients = tape.gradient([loss, 3*loss_mth_prediction, linearization_loss], model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_weights))
-
-            model.reset_states()
 
             return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
 
@@ -145,15 +146,17 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
             reconstruction_loss = compute_loss(t_current, t_reconstruction)
             linearization_loss = compute_loss(t_embedding, t_jordan)
 
+            preliminary_net.reset_states()
+
             if mth_flag:
                 t_mth_predictions = loop_net(t_current)
                 loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1))
+                loop_net.reset_states()
             else:
                 loss_mth_prediction = tf.constant(0, dtype=tf.float32)
             loss = loss_next_prediction
 
             metric_device = compute_metric(t_next_actual, t_next_predicted)
-            model.reset_states()
 
             return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
 
