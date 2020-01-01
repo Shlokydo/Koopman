@@ -296,7 +296,14 @@ def traintest(parameter_list, flag):
     #Get the Model
     with mirrored_strategy.scope():
 
-        model = net.Koopman_RNN(parameter_list = parameter_list)
+        encoder = net.encoder(parameter_list = parameter_list)
+        decoder = net.decoder(parameter_list = parameter_list)
+        koopman_aux_net = net.koopman_aux_net(parameter_list = parameter_list)
+        koopman_jordan = net.koopman_jordan(parameter_list = parameter_list)
+
+        preliminary_net = net.preliminary_net(encoder, decoder, koopman_aux_net, koopman_jordan)
+        loop_net = net.loop_net(encoder, decoder, koopman_aux_net, koopman_jordan, mth_step)
+        # model = net.Koopman_RNN(parameter_list = parameter_list)
 
         #Defining Model compiling parameters
         learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = True)
@@ -304,7 +311,7 @@ def traintest(parameter_list, flag):
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         #Defining the checkpoint instance
-        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, optimizer = optimizer)
+        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), encoder = encoder, decoder = decoder, koopman_aux_net = koopman_aux_net, koopman_jordan = koopman_jordan, optimizer = optimizer)
 
     #Creating summary writer
     summary_writer = tf.summary.create_file_writer(logdir= parameter_list['log_dir'])
@@ -320,12 +327,12 @@ def traintest(parameter_list, flag):
         print("Restored from {}".format(manager.latest_checkpoint))
 
         print('Starting training of Experiment: {}... \n'.format(parameter_list['Experiment_No']))
-        return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
+        return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
 
     else:
         print("No checkpoint exists.")
 
         print('Initializing from scratch for Experiment: {}... \n'.format(parameter_list['Experiment_No']))
-        return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
+        return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
 
     print(learning_rate)
