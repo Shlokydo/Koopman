@@ -304,7 +304,6 @@ def traintest(parameter_list, flag):
 
         preliminary_net = net.preliminary_net(encoder, decoder, koopman_aux_net, koopman_jordan)
         loop_net = net.loop_net(encoder, decoder, koopman_aux_net, koopman_jordan, mth_step = parameter_list['mth_step'])
-        # model = net.Koopman_RNN(parameter_list = parameter_list)
 
         #Defining Model compiling parameters
         learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = True)
