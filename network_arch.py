@@ -20,10 +20,10 @@ class encoder(tf.keras.Model):
         self.encoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
         self.encoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
-        self.layers = tf.keras.Sequential(self.encoder_layer)
+        self.layer_net = tf.keras.Sequential(self.encoder_layer)
 
     def call(self, inputs):
-        return self.layers(inputs)
+        return self.layer_net(inputs)
 
     def get_config(self):
         configuration = {'Units' : self.units,
@@ -51,10 +51,10 @@ class decoder(tf.keras.Model):
         self.decoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
         self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
-        self.layers = tf.keras.Sequential(self.decoder_layer)
+        self.layer_net = tf.keras.Sequential(self.decoder_layer)
 
     def call(self, inputs):
-        return self.layers(inputs)
+        return self.layer_net(inputs)
 
     def get_config(self):
         configuration = {'Units' : self.units,
@@ -75,22 +75,22 @@ class koopman_aux_net(tf.keras.Model):
         self.koopman_layer_complex = []
         self.output_units_real = parameter_list['kaux_output_units_real']
         self.output_units_complex = parameter_list['kaux_output_units_complex']
-        self.stateful = parameter_list['stateful']
+        self.statet = parameter_list['stateful']
 
     def build(self, input_shape):
         #if self.output_units_real:
         for i in range(self.width):
-            self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
-        self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
+            self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
         self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
 
         #if self.output_units_complex:
-        for i in range(self.width):
-            self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
-        self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful=self.stateful))
+        for j in range(self.width):
+            self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
-        self.complex_layers = tf.keras.Sequential(self.koopman_layer_real)
+        self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
 
     def call(self, inputs):
 
@@ -101,7 +101,9 @@ class koopman_aux_net(tf.keras.Model):
 
         y = self.complex_layers(input_complex)
 
-        return tf.concat([x,y], axis=2)
+        returneds = tf.concat([x,y], axis=2)
+
+        return returneds
 
         def get_config(self):
             configuration = {'Units' : self.units,

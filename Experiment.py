@@ -37,8 +37,8 @@ parameter_list['input_scaling'] = 1
 parameter_list['inputs'] = 2
 parameter_list['dataset'] = args.dataset + '.h5'
 
-parameter_list['num_real'] = 2                          #Number of real Koopman eigenvalues
-parameter_list['num_complex_pairs'] = 0                 #Number of complex conjugate eigenvalues
+parameter_list['num_real'] = 0                          #Number of real Koopman eigenvalues
+parameter_list['num_complex_pairs'] = 1                 #Number of complex conjugate eigenvalues
 parameter_list['num_evals'] = parameter_list['num_real'] + 2 * parameter_list['num_complex_pairs']
 
 parameter_list['experiments'] = args.experiment
@@ -47,8 +47,8 @@ parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir']
 
 #Getting the default parameter_list
 #Settings related to dataset creation
-parameter_list['Batch_size'] = 256*8                      #Batch size
-parameter_list['Batch_size_val'] = 256*4                      #Batch size
+parameter_list['Batch_size'] = 1024*4                      #Batch size
+parameter_list['Batch_size_val'] = 1024*2                      #Batch size
 parameter_list['Buffer_size'] = 50000                    #Buffer size for shuffle
 
 #Encoder layer
@@ -135,7 +135,7 @@ for i in parameter_list['experiments']:
     if multi_flag:
         print('Multi GPU {}ing'.format(flag))
         parameter_list['delta_t'] = args.delta_t
-        parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+        #parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
         parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list), flag)
     else:
         print('Single or no GPU {}ing'.format(flag))

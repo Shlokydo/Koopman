@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import os
 
-import network_arch_2 as net 
+import network_arch as net 
 import Helperfunction as helpfunc 
 from plot import plot_figure, plot_diff, animate
 
