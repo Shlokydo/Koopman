@@ -183,38 +183,3 @@ class preliminary_net(tf.keras.Model):
         input_reconstruct = self.decoder(k_embeddings_cur)
 
         return next_state_space, input_reconstruct, k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:]
-
-class loop_net(tf.keras.Model):
-
-    def __init__(self, encoder, decoder, k_net, k_jor, mth_step, **kwargs):
-        super(loop_net, self).__init__()
-        self.encoder = encoder
-        self.koopman_aux_net = k_net
-        self.koopman_jordan = k_jor
-        self.decoder = decoder
-        self.mth_step = mth_step
-
-    def call(self, inputs):
-
-        for_mth_iterations = inputs.shape[1] - self.mth_step
-        next_state_space_mth = tf.TensorArray(tf.float32, size=for_mth_iterations, element_shape = (inputs.shape[0], 1, inputs.shape[2]))
-        for i in tf.range(for_mth_iterations):
-            inputs_for_mth = inputs[:,i,:]
-            inputs_for_mth = tf.expand_dims(inputs_for_mth, axis=1)
-            k_embeddings_cur = self.encoder(inputs_for_mth)
-            next_state_space_mth_ = tf.zeros_like(inputs_for_mth)
-
-            for j in tf.range(mth_step):
-                k_omegas = self.koopman_aux_net(k_embeddings_cur)
-                k_jordan_input = tf.concat([k_omegas, k_embeddings_cur], axis= 2)
-                k_jordan_output = self.koopman_jordan(k_jordan_input)
-                k_embeddings_cur = k_jordan_output
-
-            next_state_space_mth_ = self.decoder(k_jordan_output)
-            next_state_space_mth = next_state_space_mth.write(i, next_state_space_mth_)
-
-        next_state_space_mth = next_state_space_mth.stack()
-        next_state_space_mth = tf.squeeze(next_state_space_mth)
-        next_state_space_mth = tf.transpose(next_state_space_mth, [1, 0, 2])
-
-        return next_state_space_mth

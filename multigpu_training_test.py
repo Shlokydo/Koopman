@@ -86,7 +86,7 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
         def train_step(inputs):
             with tf.GradientTape() as tape:
 
-                (t_current, t_next_actual), mth_flag = inputs
+                (t_current, t_next_actual) = inputs
                 t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
                 #Calculating relative loss
@@ -94,25 +94,18 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 reconstruction_loss = compute_loss(t_current, t_reconstruction)
                 linearization_loss = compute_loss(t_embedding, t_jordan)
 
-                preliminary_net.reset_states()
-
-                if mth_flag:
-                    t_mth_predictions = loop_net(t_current)
-                    loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step']))
-                    loop_net.reset_states()
-                else:
-                    loss_mth_prediction = tf.constant(0, dtype=tf.float32)
                 loss = loss_next_prediction
 
             metric_device = compute_metric(t_next_actual, t_next_predicted)
 
-            gradients = tape.gradient([loss, 3*loss_mth_prediction, linearization_loss], model.trainable_variables)
+            gradients = tape.gradient([loss, linearization_loss], model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_weights))
 
-            return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
+            return loss, metric_device, reconstruction_loss, linearization_loss
 
         def val_step(inputs):
-            (t_current, t_next_actual), mth_flag = inputs
+
+            (t_current, t_next_actual) = inputs
 
             t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
@@ -121,54 +114,41 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
             reconstruction_loss = compute_loss(t_current, t_reconstruction)
             linearization_loss = compute_loss(t_embedding, t_jordan)
 
-            preliminary_net.reset_states()
-
-            if mth_flag:
-                t_mth_predictions = loop_net(t_current)
-                loss_mth_prediction = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1))
-                loop_net.reset_states()
-            else:
-                loss_mth_prediction = tf.constant(0, dtype=tf.float32)
             loss = loss_next_prediction
 
             metric_device = compute_metric(t_next_actual, t_next_predicted)
 
-            return loss, metric_device, reconstruction_loss, linearization_loss, loss_mth_prediction
+            return loss, metric_device, reconstruction_loss, linearization_loss
 
         @tf.function
         def distributed_train(inputs):
 
-            pr_losses, pr_metric, pr_reconst, pr_lin, pr_mth = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
+            pr_losses, pr_metric, pr_reconst, pr_lin = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
 
             losses = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_losses, axis=None)
             metric = mirrored_strategy.reduce(tf.distribute.ReduceOp.MEAN, pr_metric, axis=None)
             reconst = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_reconst, axis=None)
             lin = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_lin, axis=None)
-            mth = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_mth, axis=None)
 
-            return losses, metric, lin, mth
+            return losses, metric, reconst, lin
 
         @tf.function
         def distributed_val(inputs):
-            pr_losses, pr_metric, pr_reconst, pr_lin, pr_mth = mirrored_strategy.experimental_run_v2(val_step, args=(inputs,))
+
+            pr_losses, pr_metric, pr_reconst, pr_lin = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
 
             losses = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_losses, axis=None)
             metric = mirrored_strategy.reduce(tf.distribute.ReduceOp.MEAN, pr_metric, axis=None)
             reconst = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_reconst, axis=None)
             lin = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_lin, axis=None)
-            mth = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_mth, axis=None)
 
-            return losses, metric, reconst, lin, mth
+            return losses, metric, reconst, lin
 
         #Initialing training variables
         global_epoch = parameter_list['global_epoch']
         global_step = 0
         val_min = 0
         val_loss_min = parameter_list['val_min']
-
-        cal_mth_loss_flag = False
-        cal_mth_loss_flag_val = False
-        mth_loss_calculation_manipulator = parameter_list['mth_no_cal_epochs']
 
         with summary_writer.as_default():
 
@@ -181,26 +161,16 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 start_time = time.time()
                 print('\nStart of epoch {}'.format(global_epoch))
 
-                #Manipulating flag for mth prediction loss calculation
-                if not((global_epoch) % mth_loss_calculation_manipulator):
-                    if not(cal_mth_loss_flag_val):
-                        print('\nStarting calculating mth prediction loss\n')
-                        cal_mth_loss_flag = True
-                        mth_loss_calculation_manipulator = parameter_list['mth_cal_patience']
-                    else:
-                        cal_mth_loss_flag = False
-                        mth_loss_calculation_manipulator = parameter_list['mth_no_cal_epochs']
-                        print('\nStopping calulation of mth prediction loss\n')
                 # Iterate over the batches of the dataset.
                 for step, inp in enumerate(dataset):
 
-                    inputs = (inp, cal_mth_loss_flag)
+                    inputs = inp
 
                     global_step += 1
 
                     # Open a GradientTape to record the operations run
                     # during the forward pass, which enables autodifferentiation.
-                    loss, t_metric, t_reconst, t_lin, t_mth = distributed_train(inputs)
+                    loss, t_metric, t_reconst, t_lin = distributed_train(inputs)
 
                     if not (step % parameter_list['log_freq']):
                         print('Training loss (for one batch) at step {}: {}'.format(step+1, float(loss)))
@@ -213,14 +183,12 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                     tf.summary.scalar('Loss_total', loss, step= global_epoch)
                     tf.summary.scalar('Reconstruction_loss', t_reconst, step= global_epoch)
                     tf.summary.scalar('Linearization_loss', t_lin, step= global_epoch)
-                    if cal_mth_loss_flag:
-                        tf.summary.scalar('Mth_prediction_loss', t_mth, step= global_epoch)
 
                 for v_step, v_inp in enumerate(val_dataset):
 
-                    v_inputs = (v_inp, cal_mth_loss_flag)
+                    v_inputs = v_inp
 
-                    v_loss, v_metric, v_reconst, v_lin, v_mth = distributed_val(v_inputs)
+                    v_loss, v_metric, v_reconst, v_lin = distributed_val(v_inputs)
 
                     if not (v_step % parameter_list['log_freq']):
                         print('Validation loss (for one batch) at step {} : {}'.format(v_step + 1, float(v_loss)))
@@ -232,8 +200,6 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                     tf.summary.scalar('V_Loss_total', v_loss, step= global_epoch)
                     tf.summary.scalar('V_Reconstruction_loss', v_reconst, step= global_epoch)
                     tf.summary.scalar('V_Linearization_loss', v_lin, step= global_epoch)
-                    if cal_mth_loss_flag:
-                        tf.summary.scalar('V_Mth_prediction_loss', v_mth, step= global_epoch)
 
                 if val_loss_min > v_loss:
                     val_loss_min = v_loss
@@ -278,8 +244,7 @@ def traintest(parameter_list, flag):
         koopman_jordan = net.koopman_jordan(parameter_list = parameter_list)
 
         preliminary_net = net.preliminary_net(encoder, decoder, koopman_aux_net, koopman_jordan)
-        loop_net = net.loop_net(encoder, decoder, koopman_aux_net, koopman_jordan, mth_step = parameter_list['mth_step'])
-
+        
         #Defining Model compiling parameters
         learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = True)
         learning_rate = learningrate_schedule
