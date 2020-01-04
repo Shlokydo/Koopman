@@ -44,6 +44,8 @@ def traintest(parameter_list, flag):
 
     print('\nGPU Available for testing: {}\n'.format(tf.test.is_gpu_available()))
 
+    parameter_list['stateful'] = True
+
     #Get the Model
     encoder = net.encoder(parameter_list = parameter_list)
     decoder = net.decoder(parameter_list = parameter_list)
