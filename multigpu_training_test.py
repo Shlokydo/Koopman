@@ -13,7 +13,7 @@ tf.autograph.set_verbosity(10)
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
-def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer):
+def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, optimizer):
     #Importing dataset into dataframe
     dataframe = helpfunc.import_datset(parameter_list['dataset'], parameter_list['key'])
 
@@ -98,8 +98,8 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
 
             metric_device = compute_metric(t_next_actual, t_next_predicted)
 
-            gradients = tape.gradient([loss, linearization_loss], model.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, model.trainable_weights))
+            gradients = tape.gradient([loss, linearization_loss], preliminary_net.trainable_variables)
+            optimizer.apply_gradients(zip(gradients, preliminary_net.trainable_weights))
 
             return loss, metric_device, reconstruction_loss, linearization_loss
 
@@ -231,7 +231,7 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
     parameter_list['val_min'] = val_loss_min
     return parameter_list
 
-def traintest(parameter_list, flag):
+def traintest(parameter_list):
 
     print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
 
@@ -244,7 +244,7 @@ def traintest(parameter_list, flag):
         koopman_jordan = net.koopman_jordan(parameter_list = parameter_list)
 
         preliminary_net = net.preliminary_net(encoder, decoder, koopman_aux_net, koopman_jordan)
-        
+
         #Defining Model compiling parameters
         learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = True)
         learning_rate = learningrate_schedule
@@ -267,12 +267,12 @@ def traintest(parameter_list, flag):
         print("Restored from {}".format(manager.latest_checkpoint))
 
         print('Starting training of Experiment: {}... \n'.format(parameter_list['Experiment_No']))
-        return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        return train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, optimizer)
 
     else:
         print("No checkpoint exists.")
 
         print('Initializing from scratch for Experiment: {}... \n'.format(parameter_list['Experiment_No']))
-        return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        return train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, optimizer)
 
     print(learning_rate)

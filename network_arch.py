@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 #Code for encoder layer
-class encoder(tf.keras.Model):
+class encoder(tf.keras.layers.Layer):
 
     def __init__(self, parameter_list, name= 'ENCODER', return_seq = True):
         super(encoder, self).__init__()
@@ -33,7 +33,7 @@ class encoder(tf.keras.Model):
         return configuration
 
 #Code for decoder layer
-class decoder(tf.keras.Model):
+class decoder(tf.keras.layers.Layer):
 
     def __init__(self, parameter_list, name= 'DECODER', return_seq = True):
         super(decoder, self).__init__()
@@ -64,7 +64,7 @@ class decoder(tf.keras.Model):
         return configuration
 
 #Code for Koopman Operator Auxilary Network
-class koopman_aux_net(tf.keras.Model):
+class koopman_aux_net(tf.keras.layers.Layer):
 
     def __init__(self, parameter_list):
         super(koopman_aux_net, self).__init__()
@@ -113,7 +113,7 @@ class koopman_aux_net(tf.keras.Model):
 
 #Code for Koopman Jordarn matrix, input to the layer would be the concatenated omegas for real and complex
 #eigenvalues and Koopman embddings (y) from the encoder layer 
-class koopman_jordan(tf.keras.Model):
+class koopman_jordan(tf.keras.layers.Layer):
 
     def __init__(self, parameter_list):
         super(koopman_jordan, self).__init__()

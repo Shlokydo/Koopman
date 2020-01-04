@@ -9,6 +9,7 @@ import network_arch as net
 import Helperfunction as helpfunc
 from plot import plot_figure, plot_diff, animate
 
+@tf.function
 def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 40, N_traj = 20):
 
     time, x_t_true = helpfunc.nl_pendulum(N= N_traj)
@@ -40,7 +41,7 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 40, N_traj
     animate(x_t_true, parameter_list['checkpoint_expdir'] + '/media/video.mp4')
     return None
 
-def traintest(parameter_list, flag):
+def traintest(parameter_list):
 
     print('\nGPU Available for testing: {}\n'.format(tf.test.is_gpu_available()))
 

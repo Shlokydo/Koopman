@@ -10,19 +10,19 @@ import shutil
 import argparse
 import time
 
-import training_test
 import multigpu_training_test as multi_train
 import Helperfunction as helpfunc
 import tensorflow as tf
+import valtest as testing
 
 parser = argparse.ArgumentParser(description='Experiment controller')
 parser.add_argument("--t", default='train', type=str, help="Training or testing flag setter", choices=["train", "test"])
 parser.add_argument("--gpu", default=1, type=int, help="To enable/disable multi-gpu training. Default, true.", choices=[0, 1])
 parser.add_argument("--epoch", default=200, type=int, help="Set the number of epochs.")
-parser.add_argument("--experiment", "--exp", default="default", help="Name of the experiment(s)", nargs='*')
+parser.add_argument("--experiment", "--exp", default="d", help="Name of the experiment(s)", nargs='*')
 parser.add_argument("--key", default="nl_pendulum", help="Key for the dataset to be used from the HDF5 file")
 parser.add_argument("--dataset", default="Dataset", help="Name of the .h5 dataset to be used for training")
-parser.add_argument("--delta_t", default=0.02, type=float, help="Time stepping")
+parser.add_argument("--delta_t", default=0.2, type=float, help="Time stepping")
 parser.add_argument("--num_ts", default=51, type=float, help="num of time steps")
 
 args = parser.parse_args()
@@ -124,7 +124,6 @@ for i in parameter_list['experiments']:
 
     elif os.path.isfile(pickle_name):
         parameter_list = helpfunc.read_pickle(pickle_name)
-        print(parameter_list)
 
     else:
         print('No pickle file exits at {}'.format(pickle_name))
@@ -133,15 +132,18 @@ for i in parameter_list['experiments']:
 
     start = time.time()
     if multi_flag:
-        print('Multi GPU {}ing'.format(flag))
-        parameter_list['delta_t'] = args.delta_t
-        #parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
-        parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list), flag)
+        if flag == 'train':
+            print('Multi GPU {}ing'.format(flag))
+            parameter_list['delta_t'] = args.delta_t
+            #parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+            parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list))
+        else:
+            print('Testing...')
+            parameter_list['delta_t'] = args.delta_t
+            parameter_list =  testing.traintest(copy.deepcopy(parameter_list))
     else:
-        print('Single or no GPU {}ing'.format(flag))
-        parameter_list['delta_t'] = args.delta_t
-        parameter_list = training_test.traintest(copy.deepcopy(parameter_list), flag)
-    print('Total execution time (in minutes): {}'.format((time.time() - start)/60))
+        print('Single/No GPU Training not available')
+        
 
     if flag == 'train':
         helpfunc.write_pickle(parameter_list, pickle_name)
