@@ -13,31 +13,6 @@ tf.autograph.set_verbosity(10)
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
-def test(parameter_list, model, time_steps = 5, N_traj = 3):
-
-    time, x_t_true = helpfunc.nl_pendulum(N= N_traj)
-    prediction_list_global = []
-
-    for j in range(x_t_true.shape[0]):
-        prediction_list_local = []
-        input_value = helpfunc.input_generator(x_t_true[j,0,:])
-        prediction_list_local.append(input_value[0,0,:])
-        for i in range(time_steps):
-            prediction, _, _, _ = model(input_value, cal_mth_loss = False)
-            input_value = prediction
-            prediction_list_local.append(prediction.numpy()[0,0,:])
-        x_t_local = np.asarray(prediction_list_local)
-        prediction_list_global.append(prediction_list_local)
-
-    x_t = np.asarray(prediction_list_global)
-    x_diff = helpfunc.difference(x_t_true[:,:time_steps+1,:], x_t)
-    plot_diff(x_diff[:,:,0], time, True, parameter_list['checkpoint_expdir']+'/media/x_variable.png')
-    plot_diff(x_diff[:,:,1], time, True, parameter_list['checkpoint_expdir']+'/media/y_variable.png')
-    x_t_true = np.concatenate((x_t_true[:,:time_steps+1,:], x_t), axis=0)
-    animate(x_t_true, parameter_list['checkpoint_expdir'] + '/media/video.mp4')
-    plot_figure(x_t_true, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png')
-    return None
-
 def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer):
     #Importing dataset into dataframe
     dataframe = helpfunc.import_datset(parameter_list['dataset'], parameter_list['key'])

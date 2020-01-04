@@ -64,7 +64,7 @@ parameter_list['kaux_output_units_real'] = parameter_list['num_real']           
 parameter_list['kaux_output_units_complex'] = parameter_list['num_complex_pairs'] * 2 #Number of complex outputs
 parameter_list['kp_initializer'] = 'glorot_uniform'     #Initializer of layers
 parameter_list['kp_activation'] = 'tanh'                #Activation of layers
-parameter_list['stateful'] = True
+parameter_list['stateful'] = False
 
 #Decoder layer
 parameter_list['de_units'] = 25
