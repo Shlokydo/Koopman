@@ -113,14 +113,14 @@ for i in parameter_list['experiments']:
         os.makedirs(parameter_list['checkpoint_expdir'] + '/media')
 
         parameter_list['Experiment_No'] = i
-        parameter_list['en_width'] = 4
-        parameter_list['de_width'] = 4
+        parameter_list['en_width'] = 3
+        parameter_list['de_width'] = 3
 
-        parameter_list['en_units'] = 85
-        parameter_list['de_units'] = 50
+        parameter_list['en_units'] = 80
+        parameter_list['de_units'] = 80
 
-        parameter_list['kaux_width'] = 3
-        parameter_list['kaux_units'] = 75
+        parameter_list['kaux_width'] = 2
+        parameter_list['kaux_units'] = 40
 
     elif os.path.isfile(pickle_name):
         parameter_list = helpfunc.read_pickle(pickle_name)
