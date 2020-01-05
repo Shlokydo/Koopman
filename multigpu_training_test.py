@@ -93,6 +93,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
             return per_example_metric
 
         def train_step(inputs):
+            
             with tf.GradientTape() as tape:
 
                 (t_current, t_next_actual) = inputs
@@ -131,7 +132,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
 
         @tf.function
         def distributed_train(inputs):
-
+            
             pr_losses, pr_metric, pr_reconst, pr_lin = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
 
             losses = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_losses, axis=None)
@@ -144,7 +145,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
         @tf.function
         def distributed_val(inputs):
 
-            pr_losses, pr_metric, pr_reconst, pr_lin = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
+            pr_losses, pr_metric, pr_reconst, pr_lin = mirrored_strategy.experimental_run_v2(val_step, args=(inputs,))
 
             losses = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, pr_losses, axis=None)
             metric = mirrored_strategy.reduce(tf.distribute.ReduceOp.MEAN, pr_metric, axis=None)
@@ -173,13 +174,11 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
                 # Iterate over the batches of the dataset.
                 for step, inp in enumerate(dataset):
 
-                    inputs = inp
-
                     global_step += 1
 
                     # Open a GradientTape to record the operations run
                     # during the forward pass, which enables autodifferentiation.
-                    loss, t_metric, t_reconst, t_lin = distributed_train(inputs)
+                    loss, t_metric, t_reconst, t_lin = distributed_train(inp)
 
                     if not (step % parameter_list['log_freq']):
                         print('Training loss (for one batch) at step {}: {}'.format(step+1, float(loss)))
@@ -195,9 +194,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
 
                 for v_step, v_inp in enumerate(val_dataset):
 
-                    v_inputs = v_inp
-
-                    v_loss, v_metric, v_reconst, v_lin = distributed_val(v_inputs)
+                    v_loss, v_metric, v_reconst, v_lin = distributed_val(v_inp)
 
                     if not (v_step % parameter_list['log_freq']):
                         print('Validation loss (for one batch) at step {} : {}'.format(v_step + 1, float(v_loss)))

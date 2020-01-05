@@ -135,7 +135,7 @@ for i in parameter_list['experiments']:
         if flag == 'train':
             print('Multi GPU {}ing'.format(flag))
             parameter_list['delta_t'] = args.delta_t
-            #parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+            parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
             parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list))
         else:
             print('Testing...')

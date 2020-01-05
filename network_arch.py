@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 #Code for encoder layer
-class encoder(tf.keras.layers.Layer):
+class encoder(tf.keras.Model):
 
     def __init__(self, parameter_list, name= 'ENCODER', return_seq = True):
         super(encoder, self).__init__()
@@ -33,7 +33,7 @@ class encoder(tf.keras.layers.Layer):
         return configuration
 
 #Code for decoder layer
-class decoder(tf.keras.layers.Layer):
+class decoder(tf.keras.Model):
 
     def __init__(self, parameter_list, name= 'DECODER', return_seq = True):
         super(decoder, self).__init__()
@@ -64,7 +64,7 @@ class decoder(tf.keras.layers.Layer):
         return configuration
 
 #Code for Koopman Operator Auxilary Network
-class koopman_aux_net(tf.keras.layers.Layer):
+class koopman_aux_net(tf.keras.Model):
 
     def __init__(self, parameter_list):
         super(koopman_aux_net, self).__init__()
@@ -78,32 +78,37 @@ class koopman_aux_net(tf.keras.layers.Layer):
         self.statet = parameter_list['stateful']
 
     def build(self, input_shape):
-        #if self.output_units_real:
-        for i in range(self.width):
-            self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        
+        if self.output_units_real:
+            for i in range(self.width):
+                self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
-        self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
+            self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
 
-        #if self.output_units_complex:
-        for j in range(self.width):
-            self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        if self.output_units_complex:
+            for j in range(self.width):
+                self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
-        self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
+            self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
 
     def call(self, inputs):
 
         #print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
         input_real, input_complex = tf.split(inputs, [self.output_units_real, self.output_units_complex], axis= 2)
 
-        x = self.real_layers(input_real)
+        try:
+            x = self.real_layers(input_real)
+        except:
+            x = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
 
-        y = self.complex_layers(input_complex)
+        try:
+            y = self.complex_layers(input_complex)
+        except:
+            y = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
 
-        returneds = tf.concat([x,y], axis=2)
-
-        return returneds
+        return tf.concat([x,y], axis=2)
 
         def get_config(self):
             configuration = {'Units' : self.units,
@@ -113,7 +118,7 @@ class koopman_aux_net(tf.keras.layers.Layer):
 
 #Code for Koopman Jordarn matrix, input to the layer would be the concatenated omegas for real and complex
 #eigenvalues and Koopman embddings (y) from the encoder layer 
-class koopman_jordan(tf.keras.layers.Layer):
+class koopman_jordan(tf.keras.Model):
 
     def __init__(self, parameter_list):
         super(koopman_jordan, self).__init__()
