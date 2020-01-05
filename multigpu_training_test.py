@@ -68,7 +68,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
     val_dataset = mirrored_strategy.experimental_distribute_dataset(val_dataset)
 
     decaying_weights = np.asarray([(parameter_list['num_timesteps'] - 1 - j)/(parameter_list['num_timesteps'] - 1) for j in range(parameter_list['num_timesteps'] - 1)])
-    decaying_weights = tf.convert_to_tensor(decaying_weights_1, dtype = 'float32')
+    decaying_weights = tf.convert_to_tensor(decaying_weights, dtype = 'float32')
 
     with mirrored_strategy.scope():
 
@@ -101,7 +101,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
                 #Calculating relative loss
                 loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
                 reconstruction_loss = compute_loss_1(t_current, t_reconstruction)
-                linearization_loss = compute_loss(t_embedding, t_jordan)
+                linearization_loss = compute_loss_1(t_embedding, t_jordan)
 
                 loss = loss_next_prediction
 
@@ -120,7 +120,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
 
             #Calculating relative loss
             loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
-            reconstruction_loss = compute_loss_1(t_current, t_reconstruction)
+            reconstruction_loss = compute_loss(t_current, t_reconstruction)
             linearization_loss = compute_loss(t_embedding, t_jordan)
 
             loss = loss_next_prediction
