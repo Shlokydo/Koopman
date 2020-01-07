@@ -7,14 +7,14 @@ class encoder(tf.keras.Model):
     def __init__(self, parameter_list, name= 'ENCODER', return_seq = True):
         super(encoder, self).__init__()
         self.units = parameter_list['en_units']
-        self.width = parameter_list['en_width'] - 1
+        self.width = parameter_list['en_width']
         self.initializer = parameter_list['en_initializer']
         self.output_units = parameter_list['num_evals']
         self.encoder_layer = []
 
     def build(self, input_shape):
         for i in range(self.width):
-            self.encoder_layer.append(tf.keras.layers.Dense(units= self.units, activation= None))
+            self.encoder_layer.append(tf.keras.layers.Dense(units= self.units[i], activation= None))
             self.encoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
         self.encoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
@@ -38,14 +38,14 @@ class decoder(tf.keras.Model):
     def __init__(self, parameter_list, name= 'DECODER', return_seq = True):
         super(decoder, self).__init__()
         self.units = parameter_list['de_units']
-        self.width = parameter_list['de_width'] - 1
+        self.width = parameter_list['de_width']
         self.initializer = parameter_list['de_initializer']
         self.output_units = parameter_list['de_output_units']
         self.decoder_layer = []
 
     def build(self, input_shape):
         for i in range(self.width):
-            self.decoder_layer.append(tf.keras.layers.Dense(units= self.units, activation= None))
+            self.decoder_layer.append(tf.keras.layers.Dense(units= self.units[i], activation= None))
             self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
         self.decoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
@@ -68,8 +68,10 @@ class koopman_aux_net(tf.keras.Model):
 
     def __init__(self, parameter_list):
         super(koopman_aux_net, self).__init__()
-        self.width = parameter_list['kaux_width']
-        self.units = parameter_list['kaux_units']
+        self.width_r = parameter_list['kaux_width_real']
+        self.units_r = parameter_list['kaux_units_real']
+        self.width_c = parameter_list['kaux_width_complex'] 
+        self.units_c = parameter_list['kaux_units_complex']
         self.activation = parameter_list['kp_activation']
         self.koopman_layer_real = []
         self.koopman_layer_complex = []
@@ -80,15 +82,15 @@ class koopman_aux_net(tf.keras.Model):
     def build(self, input_shape):
         
         if self.output_units_real:
-            for i in range(self.width):
-                self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            for i in range(self.width_r):
+                self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units_r, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
             self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
             self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
 
         if self.output_units_complex:
-            for j in range(self.width):
-                self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            for j in range(self.width_c):
+                self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units_c, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
             self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
             self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
