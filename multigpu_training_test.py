@@ -67,7 +67,9 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
     dataset = mirrored_strategy.experimental_distribute_dataset(dataset)
     val_dataset = mirrored_strategy.experimental_distribute_dataset(val_dataset)
 
-    decaying_weights = np.asarray([(parameter_list['num_timesteps'] - 1 - j)/(parameter_list['num_timesteps'] - 1) for j in range(parameter_list['num_timesteps'] - 1)])
+    decaying_weights = np.asarray([math.pow(parameter_list['l_decay_param'], j) for j in range(parameter_list['num_timesteps'] - 1)])
+    decaying_weights_sum = np.sum(decaying_weights)
+    decaying_weights = decaying_weights/decaying_weights_sum
     decaying_weights = tf.convert_to_tensor(decaying_weights, dtype = 'float32')
 
     with mirrored_strategy.scope():
@@ -94,6 +96,8 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
 
         def train_step(inputs):
             
+            # Open a GradientTape to record the operations run
+            # during the forward pass, which enables autodifferentiation.
             with tf.GradientTape() as tape:
 
                 (t_current, t_next_actual) = inputs
@@ -160,6 +164,8 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
         val_min = 0
         val_loss_min = parameter_list['val_min']
 
+        timer_tot = time.time()
+
         with summary_writer.as_default():
 
             epochs = parameter_list['epochs']
@@ -176,8 +182,6 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
 
                     global_step += 1
 
-                    # Open a GradientTape to record the operations run
-                    # during the forward pass, which enables autodifferentiation.
                     loss, t_metric, t_reconst, t_lin = distributed_train(inp)
 
                     if not (step % parameter_list['log_freq']):
@@ -233,6 +237,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
 
                 print('Time for epoch (in seconds): %s' %((time.time() - start_time)))
 
+    print('\n Total Epoch time (in minutes): {}'.format((time.time()-timer_tot)/60))
     parameter_list['global_epoch'] = global_epoch
     parameter_list['val_min'] = val_loss_min
     return parameter_list
