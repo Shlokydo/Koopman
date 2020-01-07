@@ -23,7 +23,10 @@ class encoder(tf.keras.Model):
         self.layer_net = tf.keras.Sequential(self.encoder_layer)
 
     def call(self, inputs):
-        return self.layer_net(inputs)
+        print(f'Calling Encoder with input shape {inputs.shape}')
+        ret = self.layer_net(inputs)
+        print('Shape of the returning tensor: {}'.format(ret.shape))
+        return ret
 
     def get_config(self):
         configuration = {'Units' : self.units,
@@ -54,7 +57,10 @@ class decoder(tf.keras.Model):
         self.layer_net = tf.keras.Sequential(self.decoder_layer)
 
     def call(self, inputs):
-        return self.layer_net(inputs)
+        print(f'Calling Decoder with input shape {inputs.shape}')
+        ret = self.layer_net(inputs)
+        print('Shape of the returning tensor: {}'.format(ret.shape))
+        return ret
 
     def get_config(self):
         configuration = {'Units' : self.units,
@@ -68,10 +74,10 @@ class koopman_aux_net(tf.keras.Model):
 
     def __init__(self, parameter_list):
         super(koopman_aux_net, self).__init__()
-        self.width_r = parameter_list['kaux_width_real']
         self.units_r = parameter_list['kaux_units_real']
-        self.width_c = parameter_list['kaux_width_complex'] 
+        self.width_r = parameter_list['kaux_width_real']
         self.units_c = parameter_list['kaux_units_complex']
+        self.width_c = parameter_list['kaux_width_complex'] 
         self.activation = parameter_list['kp_activation']
         self.koopman_layer_real = []
         self.koopman_layer_complex = []
@@ -82,23 +88,27 @@ class koopman_aux_net(tf.keras.Model):
     def build(self, input_shape):
         
         if self.output_units_real:
+            print('Making Koopman Real Net')
             for i in range(self.width_r):
-                self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units_r, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+                self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
             self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
             self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
 
         if self.output_units_complex:
+            print('Making Koopman Complex Net')
             for j in range(self.width_c):
-                self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units_c, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+                self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
             self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
             self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
 
     def call(self, inputs):
 
-        #print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
+        print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
         input_real, input_complex = tf.split(inputs, [self.output_units_real, self.output_units_complex], axis= 2)
+        print('Shape of the real input: {}'.format(input_real.shape))
+        print('Shape of the complex input: {}'.format(input_complex.shape))
 
         try:
             x = self.real_layers(input_real)
@@ -108,9 +118,11 @@ class koopman_aux_net(tf.keras.Model):
         try:
             y = self.complex_layers(input_complex)
         except:
-            y = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
+            y = tf.zeros((inputs.shape[0], inputs.shape[1], 1))
 
-        return tf.concat([x,y], axis=2)
+        ret = tf.concat([x,y], axis=2)
+        print('Shape of the returning tensor: {}'.format(ret.shape))
+        return ret
 
         def get_config(self):
             configuration = {'Units' : self.units,
@@ -130,7 +142,7 @@ class koopman_jordan(tf.keras.Model):
 
     def call(self, inputs):
 
-        # print(f'Calling koopman_jordan with input shape {inputs.shape}')
+        print(f'Calling koopman_jordan with input shape {inputs.shape}')
         omegas_real_vec, omegas_complex_vec, y = tf.split(inputs, [self.omegas_real, self.omegas_complex, self.omegas_real + self.omegas_complex], axis= 2)
         y_real, y_complex = tf.split(y, [self.omegas_real, self.omegas_complex], axis= 2)
 
@@ -165,7 +177,9 @@ class koopman_jordan(tf.keras.Model):
         except:
             y_complex_tensor = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
 
-        return tf.concat([y_real_tensor, y_complex_tensor], axis = 2)
+        ret = tf.concat([y_real_tensor, y_complex_tensor], axis = 2)
+        print('Shape of the returning tensor: {}'.format(ret.shape))
+        return ret
 
 class preliminary_net(tf.keras.Model):
 

@@ -277,13 +277,13 @@ def traintest(parameter_list):
     if manager.latest_checkpoint:
         print("Restored from {}".format(manager.latest_checkpoint))
 
-        print('Starting training of Experiment: {}... \n'.format(parameter_list['Experiment_No']))
+        print('Starting training of Experiment... \n')
         return train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, optimizer)
 
     else:
         print("No checkpoint exists.")
 
-        print('Initializing from scratch for Experiment: {}... \n'.format(parameter_list['Experiment_No']))
+        print('Initializing from scratch for Experiment... \n')
         return train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, optimizer)
 
     print(learning_rate)

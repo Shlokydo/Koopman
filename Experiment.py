@@ -24,8 +24,8 @@ parser.add_argument("--experiment", "--exp", default="d", help="Name of the expe
 parser.add_argument("--key", default="nl_pendulum", help="Key for the dataset to be used from the HDF5 file")
 parser.add_argument("--dataset", default="Dataset", help="Name of the .h5 dataset to be used for training")
 parser.add_argument("--delta_t", default=0.2, type=float, help="Time stepping")
-parser.add_argument("--num_ts", default=51, type=float, help="num of time steps")
-parser.add_argument("--num_valpoints", default=4096, type=float, help="num of validation trajectories")
+parser.add_argument("--num_ts", default=51, type=int, help="num of time steps")
+parser.add_argument("--num_valpoints", "--n_vals", default=4096, type=int, help="num of validation trajectories")
 
 parser.add_argument("--num_encoder_layers", "--n_enl", default=3, type=int, help="num of encoder layers")
 parser.add_argument("--encoder_units", "--u_enl", default=[80], type=int, nargs="+", help="num of encoder units per layer")
@@ -72,9 +72,9 @@ parameter_list['en_activation'] = 'relu'                #All same as encoder til
 parameter_list['en_initializer'] = 'glorot_uniform'
 
 #Koopman auxilary network
-parameter_list['kaux_units_real'] = args.kaux_units_real                             
-parameter_list['kaux_units_complex'] = args.kaux_units_complex                             
+parameter_list['kaux_units_real'] = args.kaux_units_real                                                        
 parameter_list['kaux_width_real'] = args.num_kaux_layers_real
+parameter_list['kaux_units_complex'] = args.kaux_units_complex 
 parameter_list['kaux_width_complex'] = args.num_kaux_layers_complex                                                      #Number of dense layers
 parameter_list['kaux_output_units_real'] = parameter_list['num_real']                 #Number of real outputs
 parameter_list['kaux_output_units_complex'] = parameter_list['num_complex_pairs'] * 2 #Number of complex outputs
@@ -143,7 +143,7 @@ for i in parameter_list['experiments']:
         if flag == 'train':
             print('Multi GPU {}ing'.format(flag))
             parameter_list['delta_t'] = args.delta_t
-            parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+            #parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
             parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list))
         else:
             print('Testing...')
@@ -152,6 +152,5 @@ for i in parameter_list['experiments']:
     else:
         print('Single/No GPU Training not available')
         
-
     if flag == 'train':
         helpfunc.write_pickle(parameter_list, pickle_name)
