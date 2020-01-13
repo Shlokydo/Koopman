@@ -4,7 +4,7 @@ import tensorflow as tf
 #Code for encoder layer
 class encoder(tf.keras.Model):
 
-    def __init__(self, parameter_list, name= 'ENCODER', return_seq = True):
+    def __init__(self, parameter_list, name= 'ENCODER'):
         super(encoder, self).__init__()
         self.units = parameter_list['en_units']
         self.width = parameter_list['en_width']
@@ -38,7 +38,7 @@ class encoder(tf.keras.Model):
 #Code for decoder layer
 class decoder(tf.keras.Model):
 
-    def __init__(self, parameter_list, name= 'DECODER', return_seq = True):
+    def __init__(self, parameter_list, name= 'DECODER'):
         super(decoder, self).__init__()
         self.units = parameter_list['de_units']
         self.width = parameter_list['de_width']
@@ -72,7 +72,7 @@ class decoder(tf.keras.Model):
 #Code for Koopman Operator Auxilary Network
 class koopman_aux_net(tf.keras.Model):
 
-    def __init__(self, parameter_list):
+    def __init__(self, parameter_list, name='Koopman_Aux'):
         super(koopman_aux_net, self).__init__()
         self.units_r = parameter_list['kaux_units_real']
         self.width_r = parameter_list['kaux_width_real']
