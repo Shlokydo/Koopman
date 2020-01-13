@@ -36,6 +36,9 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
     initial_dataset_x, initial_dataset_y = helpfunc.np_array_shuffle(initial_dataset_x, initial_dataset_y)
 
     #Splitting the dataset into train and validation dataset
+    initial_dataset_x = initial_dataset_x[:(parameter_list['num_validation_points']+parameter_list['num_training_points'])]
+    initial_dataset_y = initial_dataset_y[:(parameter_list['num_validation_points']+parameter_list['num_training_points'])]
+
     initial_dataset_x_train = initial_dataset_x[:-parameter_list['num_validation_points']]
     initial_dataset_y_train = initial_dataset_y[:-parameter_list['num_validation_points']]
 

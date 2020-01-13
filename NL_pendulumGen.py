@@ -33,16 +33,16 @@ def nl_pendulum(N = 10, max_time = 10, delta_t= 0.02, show = False, x0 = [-3.1, 
 
     return time, x_t_new
 
-time, x_t = nl_pendulum(N = 30000, max_time = 1, delta_t=0.02, show= False, x0= [-3.1, 0], x1 = [-2, 0])
-time, x_t2 = nl_pendulum(N = 30000, max_time = 10, delta_t=0.2, show= False, x0= [-3.1, 0], x1 = [-2, 0])
+time, x_t = nl_pendulum(N = 35000, max_time = 1, delta_t=0.02, show= False, x0= [-3.1, 0], x1 = [-2, 0])
+time, x_t2 = nl_pendulum(N = 35000, max_time = 10, delta_t=0.2, show= False, x0= [-3.1, 0], x1 = [-2, 0])
 print(x_t.shape)
 
 #Code to make Panda's Dataframe out of the simulation data
 
-def package(x_t, key, points, dname):
+def package(x_t, key, startpoints, endpoints, dname):
     dataframe = pd.DataFrame()
 
-    x_t = x_t[:points]
+    x_t = x_t[startpoints:endpoints]
     m,n,r = x_t.shape
     out_arr = np.column_stack((np.repeat(np.arange(m),n),x_t.reshape(m*n,-1)))
     out_df = pd.DataFrame(out_arr, columns=['Iteration', 'X', 'Y'])
@@ -51,5 +51,7 @@ def package(x_t, key, points, dname):
     #Writing the dataframe to a global Dataset HDF5 file
     dataframe.to_hdf(dname, key=key, mode='a')
 
-package(x_t, 'nl_pendulum_tenth', 1024*4*4, 'Dataset2.h5')
-package(x_t2, 'nl_pendulum', 1024*4*4, 'Dataset2.h5')
+package(x_t[:1024*4*5.1], 'nl_pendulum_tenth', 0, 1024*4*5, 'Dataset.h5')
+package(x_t[:1024*4*5.1], 'nl_pendulum_tenth_test', 1024*4*5, -1, 'Dataset.h5')
+package(x_t2[:1024*4*5.1], 'nl_pendulum', 0, 1024*4*5, 'Dataset.h5')
+package(x_t2[:1024*4*5.1], 'nl_pendulum_test', 1024*4*5, -1, 'Dataset.h5')

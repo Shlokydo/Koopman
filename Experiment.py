@@ -26,6 +26,7 @@ parser.add_argument("--dataset", default="Dataset", help="Name of the .h5 datase
 parser.add_argument("--delta_t", default=0.2, type=float, help="Time stepping")
 parser.add_argument("--num_ts", default=51, type=int, help="num of time steps")
 parser.add_argument("--num_valpoints", "--n_vals", default=4096, type=int, help="num of validation trajectories")
+parser.add_argument("--num_trainpoints", "--n_train", default=8192, type=int, help="num of training trajectories")
 
 parser.add_argument("--num_encoder_layers", "--n_enl", default=3, type=int, help="num of encoder layers")
 parser.add_argument("--encoder_units", "--u_enl", default=[80], type=int, nargs="+", help="num of encoder units per layer")
@@ -46,6 +47,7 @@ parameter_list = {}
 #Basic setting for all the experiments
 parameter_list['key'] = args.key
 parameter_list['num_timesteps'] = 51   #Next version, need to read it from the dataset
+parameter_list['num_training_points'] = args.num_trainpoints
 parameter_list['num_validation_points'] = args.num_valpoints
 parameter_list['input_scaling'] = 1
 parameter_list['inputs'] = 2
