@@ -104,7 +104,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
                 t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
                 #Calculating relative loss
-                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
+                loss_next_prediction = compute_loss_1(t_next_actual, t_next_predicted)
                 reconstruction_loss = compute_loss_1(t_current, t_reconstruction)
                 linearization_loss = compute_loss_1(t_embedding, t_jordan)
 
@@ -124,9 +124,9 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
             t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
             #Calculating relative loss
-            loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
-            reconstruction_loss = compute_loss(t_current, t_reconstruction)
-            linearization_loss = compute_loss(t_embedding, t_jordan)
+            loss_next_prediction = compute_loss_1(t_next_actual, t_next_predicted)
+            reconstruction_loss = compute_loss_1(t_current, t_reconstruction)
+            linearization_loss = compute_loss_1(t_embedding, t_jordan)
 
             loss = loss_next_prediction
 
