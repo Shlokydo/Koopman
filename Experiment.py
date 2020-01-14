@@ -40,12 +40,15 @@ parser.add_argument("--kaux_units_complex", "--cu_kaux", default=[80], type=int,
 parser.add_argument("--real_ef", default=1, type=int, help="Number of real eigenfunctions")
 parser.add_argument("--complex_ef", default=1, type=int, help="Number of complex eigenfunctions")
 
+parser.add_argument("--weighted_loss", "--wl", default=0, type=int, help="Weighted loss function as in Otto et.al")
+
 args = parser.parse_args()
 
 parameter_list = {}
 
 #Basic setting for all the experiments
 parameter_list['key'] = args.key
+parameter_list['key_test'] = ars.key + '_test'
 parameter_list['num_timesteps'] = 51   #Next version, need to read it from the dataset
 parameter_list['num_training_points'] = args.num_trainpoints
 parameter_list['num_validation_points'] = args.num_valpoints
@@ -103,6 +106,7 @@ parameter_list['early_stop_patience'] =21900               #Patience in num of e
 parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
 parameter_list['mth_cal_patience'] = 10                  #number of epochs after which mth loss is calculated
 parameter_list['mth_no_cal_epochs'] = 50                #Number of epochs for which mth loss is not calculated
+parameter_list['weighted'] = args.weighted_loss
 parameter_list['reconst_hp'] = 0.001
 parameter_list['global_epoch'] = 0
 parameter_list['val_min'] = 100

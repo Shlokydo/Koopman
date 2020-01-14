@@ -74,6 +74,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
     decaying_weights_sum = np.sum(decaying_weights)
     decaying_weights = decaying_weights/decaying_weights_sum
     decaying_weights = tf.convert_to_tensor(decaying_weights, dtype = 'float32')
+    weighted = parameter_list['weighted']
 
     with mirrored_strategy.scope():
 
@@ -84,13 +85,14 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
         metric = tf.keras.metrics.RootMeanSquaredError(name='MetricRMSE')
 
         def compute_loss(labels, predictions):
-            sub = tf.subtract(labels, predictions)
-            squ_trans_mul = tf.transpose(tf.square(sub), perm = [0,2,1]) * decaying_weights[:labels.shape[1]]
-            per_example_loss = tf.reduce_sum(squ_trans_mul)
-            return per_example_loss / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - 1))
+            
+            if weighted:
+                sub = tf.subtract(labels, predictions)
+                squ_trans_mul = tf.transpose((tf.transpose(tf.square(sub), perm = [0,2,1]) * decaying_weights[:labels.shape[1]]), perm=[0,2,1])
+                per_example_loss = tf.reduce_sum(squ_trans_mul)
+            else:
+                per_example_loss = loss_func(labels, predictions)
 
-        def compute_loss_1(labels, predictions):
-            per_example_loss = loss_func(labels, predictions)
             return per_example_loss / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - 1))
 
         def compute_metric(labels, predictions):
@@ -107,9 +109,9 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
                 t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
                 #Calculating relative loss
-                loss_next_prediction = compute_loss_1(t_next_actual, t_next_predicted)
-                reconstruction_loss = compute_loss_1(t_current, t_reconstruction)
-                linearization_loss = compute_loss_1(t_embedding, t_jordan)
+                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
+                reconstruction_loss = compute_loss(t_current, t_reconstruction)
+                linearization_loss = compute_loss(t_embedding, t_jordan)
 
                 loss = loss_next_prediction
 
@@ -127,9 +129,9 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
             t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
             #Calculating relative loss
-            loss_next_prediction = compute_loss_1(t_next_actual, t_next_predicted)
-            reconstruction_loss = compute_loss_1(t_current, t_reconstruction)
-            linearization_loss = compute_loss_1(t_embedding, t_jordan)
+            loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
+            reconstruction_loss = compute_loss(t_current, t_reconstruction)
+            linearization_loss = compute_loss(t_embedding, t_jordan)
 
             loss = loss_next_prediction
 
@@ -166,7 +168,6 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
         global_step = 0
         val_min = 0
         val_loss_min = parameter_list['val_min']
-
         timer_tot = time.time()
 
         with summary_writer.as_default():
