@@ -52,6 +52,17 @@ def split_sequences(sequences, n_steps):
         y.append(seq_y)
     return np.array(X), np.array(y)
 
+def sequences_test(sequences, n_steps):
+    X = list()
+    for i in range(len(sequences)):
+        # find the end of this pattern
+        end_ix = i*n_steps + n_steps
+        if (end_ix > len(sequences) - 1):
+            break
+        seq_x = sequences[i*n_steps:end_ix, :]
+        X.append(seq_x)
+    return np.array(X)
+
 def np_array_shuffle(initial_dataset_x, initial_dataset_y):
     initial_dataset_concat = np.concatenate((initial_dataset_x, initial_dataset_y), axis = 2)
     np.random.shuffle(initial_dataset_concat)
@@ -86,15 +97,14 @@ def input_generator(input_value):
     input_value = np.expand_dims(input_value, axis=0)
     return input_value
 
-def nl_pendulum(N = 10, max_time = 10, delta_t= 0.2, x0 = [-3.1, 3.1], x1 = [-2 , 2]):
+def nl_pendulum(extension_list, N = 10, max_time = 10, delta_t= 0.2):
 
     def nl_pendulum_deriv(x_y, t0):
         """Compute the time-derivative."""
         x, y = x_y
         return [y, -np.sin(x)]
 
-    x = np.resize(np.linspace(x0[0], x0[1], num = N),(N,1))
-    x = np.insert(x, 1, np.resize(np.linspace(x1[0], x1[1], num = N),(N,1)).T, axis=1)
+    x = extension_list
     # Solve for the trajectories
     time = np.arange(0, max_time+delta_t, delta_t)
     

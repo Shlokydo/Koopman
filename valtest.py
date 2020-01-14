@@ -9,10 +9,33 @@ import network_arch as net
 import Helperfunction as helpfunc
 from plot import plot_figure, plot_diff, animate
 
-@tf.function
-def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 40, N_traj = 20):
+def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = parameter_list['num_timesteps'] + 30, N_traj = 20):
 
-    time, x_t_true = helpfunc.nl_pendulum(N= N_traj)
+    dataframe = helpfunc.import_datset(parameter_list['dataset'], parameter_list['key_test'])
+
+    #Converting dataframe to numpy array
+    nparray = helpfunc.dataframe_to_nparray(dataframe)
+
+    #Delete the unrequired columns in the nparray
+    nparray = helpfunc.nparray_del_vec_along_axis(nparray, 0, ax = 1)
+
+    #Change the datatype to float32
+    initial_dataset = helpfunc.change_nparray_datatype(nparray, 'float32')
+
+    #Scale the dataset
+    initial_dataset = helpfunc.dataset_scaling(initial_dataset, parameter_list['input_scaling'])
+
+    #Generate split x and y sequence from the dataset
+    initial_dataset_x = helpfunc.sequences_test(initial_dataset, parameter_list['num_timesteps'])
+
+    #Shuffling the dataset
+    initial_dataset_x = helpfunc.np_array_shuffle(initial_dataset_x, initial_dataset_y)
+
+    x_t_true = initial_dataset_x[:N_traj]
+    extension_list = x_t_true[:,-1,:]
+
+    time, x_t = helpfunc.nl_pendulum(extension_list, N= N_traj, delta_t=parameter_list['delta_t'])
+    x_t_true = np.concatenate((x_t_true, x_t[:time_steps-parameter_list['num_timesteps']]), axis=1)
     prediction_list_global = []
 
     for j in range(x_t_true.shape[0]):

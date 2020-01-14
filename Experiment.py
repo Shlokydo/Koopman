@@ -48,7 +48,7 @@ parameter_list = {}
 
 #Basic setting for all the experiments
 parameter_list['key'] = args.key
-parameter_list['key_test'] = ars.key + '_test'
+parameter_list['key_test'] = args.key + '_test'
 parameter_list['num_timesteps'] = 51   #Next version, need to read it from the dataset
 parameter_list['num_training_points'] = args.num_trainpoints
 parameter_list['num_validation_points'] = args.num_valpoints
