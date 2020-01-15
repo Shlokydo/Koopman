@@ -74,7 +74,6 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
     decaying_weights_sum = np.sum(decaying_weights)
     decaying_weights = decaying_weights/decaying_weights_sum
     decaying_weights = tf.convert_to_tensor(decaying_weights, dtype = 'float32')
-    weighted = parameter_list['weighted']
 
     with mirrored_strategy.scope():
 
@@ -84,7 +83,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
         #Metric
         metric = tf.keras.metrics.RootMeanSquaredError(name='MetricRMSE')
 
-        def compute_loss(labels, predictions):
+        def compute_loss(labels, predictions, weighted):
             
             if weighted:
                 sub = tf.subtract(labels, predictions)
@@ -109,9 +108,9 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
                 t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
                 #Calculating relative loss
-                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
-                reconstruction_loss = compute_loss(t_current, t_reconstruction)
-                linearization_loss = compute_loss(t_embedding, t_jordan)
+                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, weighted = parameter_list['weighted'])
+                reconstruction_loss = compute_loss(t_current, t_reconstruction, weighted = parameter_list['weighted'])
+                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted'])
 
                 loss = loss_next_prediction
 
@@ -129,9 +128,9 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
             t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
             #Calculating relative loss
-            loss_next_prediction = compute_loss(t_next_actual, t_next_predicted)
-            reconstruction_loss = compute_loss(t_current, t_reconstruction)
-            linearization_loss = compute_loss(t_embedding, t_jordan)
+            loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, 0)
+            reconstruction_loss = compute_loss(t_current, t_reconstruction, 0)
+            linearization_loss = compute_loss(t_embedding, t_jordan, 0)
 
             loss = loss_next_prediction
 
