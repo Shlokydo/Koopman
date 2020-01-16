@@ -145,18 +145,16 @@ for i in parameter_list['experiments']:
         sys.exit()
 
     start = time.time()
-    if multi_flag:
-        if flag == 'train':
-            print('Multi GPU {}ing'.format(flag))
-            parameter_list['delta_t'] = args.delta_t
-            #parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
-            parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list))
-        else:
-            print('Testing...')
-            parameter_list['delta_t'] = args.delta_t
-            parameter_list =  testing.traintest(copy.deepcopy(parameter_list))
-    else:
-        print('Single/No GPU Training not available')
-        
+    # if multi_flag:
     if flag == 'train':
+        print('Multi GPU {}ing'.format(flag))
+        parameter_list['delta_t'] = args.delta_t
+        parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+        parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list))
         helpfunc.write_pickle(parameter_list, pickle_name)
+    else:
+        print('Testing...')
+        parameter_list['delta_t'] = args.delta_t
+        parameter_list = testing.traintest(copy.deepcopy(parameter_list))
+    # else:
+    #     print('Single/No GPU Training not available')
