@@ -14,7 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 from mpl_toolkits.axisartist.axislines import SubplotZero
 
-def plot_figure(x_t, save_image, name):
+def plot_figure(x_t, save_image, name, statespace = True, embed = False, evalue = False):
     fig = plt.figure()
     ax = SubplotZero(fig, 111)
     fig.add_subplot(ax)
@@ -40,24 +40,33 @@ def plot_figure(x_t, save_image, name):
     ax.set_xlim((np.min(x_t[:,:,0])-0.5, np.max(x_t[:,:,0])+0.5))
     ax.set_ylim((np.min(x_t[:,:,1])-0.5, np.max(x_t[:,:,1])+0.5))
 
-    # choose a different color for each trajectory
-    color_count = np.linspace(0,1,x_t.shape[0]/2)
-    concat_list = [color_count]
-    num_traj = int(x_t.shape[0]/2)
-    concat_list = 2 * concat_list
-    concat_list = np.concatenate((concat_list))
-    colors = plt.cm.viridis(concat_list)
-    # set up lines and points
-    lines = sum([ax.plot([], [], '-', c=c)
-                for c in colors], [])
-    pts = sum([ax.plot([], [], 'o', c=c)
-            for c in colors], [])
+    if statespace:
+        # choose a different color for each trajectory
+        color_count = np.linspace(0,1,x_t.shape[0]/2)
+        colors = plt.cm.viridis(concat_list)
+        mid = int(x_t.shape[0]/2)
+        for j in range(mid):
+            lines = ax.plot(x_t[j,:,0], x_t[j,:,1], '-', label = f'Trajectory {j+1}', c=colors[j])
+            plt.setp(lines, linewidth=1)
+            lines = ax.plot(x_t[j+mid,:,0], x_t[j+mid,:,1], '-*', c=colors[j])
+            plt.setp(lines, linewidth=1)
+    
+    elif embed:
 
-    for j in range(int(x_t.shape[0]/2)):
-        lines = ax.plot(x_t[j,:,0], x_t[j,:,1], '-', label = f'Trajectory {j+1}', c=colors[j])
-        plt.setp(lines, linewidth=1)
-        lines = ax.plot(x_t[j+int(x_t.shape[0]/2),:,0], x_t[j+int(x_t.shape[0]/2),:,1], '-*', c=colors[j])
-        plt.setp(lines, linewidth=1)
+        color_count = np.linspace(0,1,x_t.shape[0])
+        colors = plt.cm.viridis(concat_list)
+
+        for j in range(int(x_t.shape[0])):
+            lines = ax.plot(x_t[j,:,0], x_t[j,:,1], ':', label = f'Trajectory {j+1}', c=colors[j])
+            plt.setp(lines, linewidth=1)
+
+    elif evalue:
+
+        color_count = np.linspace(0,1,x_t.shape[0])
+        colors = plt.cm.viridis(concat_list)
+
+        for j in range(int(x_t.shape[0])):
+            lines = ax.scatter(x_t[j,:,0], x_t[j,:,1], label = f'Trajectory {j+1}', c=colors[j])
 
     ax.margins(0.001)
     ax.legend()
@@ -83,19 +92,16 @@ def plot_diff(x_t, time, save_image, name):
         ax.axis[direction].set_visible(False)
 
     # prepare the axes limits
-    ax.set_xlim((np.min(time), np.max(time)+0.5))
+    ax.set_xlim((np.min(time[:x_t.shape[1]]), np.max(time[:x_t.shape[1]])+0.5))
     ax.set_ylim((np.min(x_t)-0.05, np.max(x_t)+0.05))
 
     # choose a different color for each trajectory
     colors = plt.cm.viridis(np.linspace(0, 1, x_t.shape[0]))
 
-    for i in range(1):
-        x = x_t
-        for j in range(x.shape[0]):
-            lines = ax.plot(time[:x.shape[1]], x[j,:], '-*', c=colors[j], label=f'Trajectory {j+1}')
-            plt.setp(lines, linewidth=1)
+    for j in range(x_t.shape[0]):
+        lines = ax.plot(time[:x_t.shape[1]], x_t[j,:], '-*', c=colors[j], label=f'Trajectory {j+1}')
+        plt.setp(lines, linewidth=1)
             
-
     ax.margins(0.001)
     ax.legend()
     plt.grid(True)
@@ -111,17 +117,17 @@ def animate(x_t, name):
 
     # choose a different color for each trajectory
     color_count = np.linspace(0,1,x_t.shape[0]/2)
-    concat_list = [color_count]
-    num_traj = int(x_t.shape[0]/2)
-    concat_list = 2 * concat_list
-    concat_list = np.concatenate((concat_list))
-    colors = plt.cm.viridis(concat_list)
+    colors = plt.cm.viridis(color_count)
     # set up lines and points
     lines = sum([ax.plot([], [], '-', c=c)
                 for c in colors], [])
+    lines = sum([ax.plot([], [], ':', c=c)
+                for c in colors], lines)
     pts = sum([ax.plot([], [], 'o', c=c)
             for c in colors], [])
-
+    pts = sum([ax.plot([], [], '*', c=c)
+            for c in colors], pts)
+    
     # prepare the axes limits
     ax.set_xlim((np.min(x_t[:,:,0])-0.5, np.max(x_t[:,:,0])+0.5))
     ax.set_ylim((np.min(x_t[:,:,1])-0.5, np.max(x_t[:,:,1])+0.5))

@@ -9,8 +9,9 @@ import network_arch as net
 import Helperfunction as helpfunc
 from plot import plot_figure, plot_diff, animate
 
-def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = parameter_list['num_timesteps'] + 30, N_traj = 20):
+def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj = 20):
 
+    time_step = parameter_list['num_timesteps'] + time_steps - 1
     dataframe = helpfunc.import_datset(parameter_list['dataset'], parameter_list['key_test'])
 
     #Converting dataframe to numpy array
@@ -34,33 +35,48 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = parameter_
     x_t_true = initial_dataset_x[:N_traj]
     extension_list = x_t_true[:,-1,:]
 
-    time, x_t = helpfunc.nl_pendulum(extension_list, N= N_traj, delta_t=parameter_list['delta_t'])
-    x_t_true = np.concatenate((x_t_true, x_t[:time_steps-parameter_list['num_timesteps']]), axis=1)
+    x_t = helpfunc.nl_pendulum(extension_list, N= N_traj, delta_t=parameter_list['delta_t'])
+    x_t_true = np.concatenate((x_t_true, x_t[:time_steps]), axis=1)
     prediction_list_global = []
+    k_embeddings_list_global = []
+    eigen_value_global = []
 
     for j in range(x_t_true.shape[0]):
         prediction_list_local = []
+        k_embeddings_list_local = []
+        eigen_value_local = []
         input_value = helpfunc.input_generator(x_t_true[j,0,:])
         prediction_list_local.append(input_value[0,0,:])
         
-        input_value = encoder(input_value)
-        for i in range(time_steps):
-            koopman_embedding = k_aux(input_value)
-            koopman_evolved = k_jor(koopman_embedding)
+        k_embeddings_cur = encoder(input_value)
+        k_embeddings_list_local.append(k_embeddings_cur.numpy()[0,0,:])
+        for i in range(time_step-1):
+            k_omegas = k_aux(k_embeddings_cur)
+            k_embeddings_list_local.append(k_omegas.numpy()[0,0,:])
+            eigen_value_local.append(k_omegas.numpy()[0,0,:])
+            k_jordan_input = tf.concat([k_omegas, k_embeddings_cur], axis= 2)
+            koopman_evolved = k_jor(k_jordan_input)
             prediction = decoder(koopman_evolved)
-            input_value = prediction
-            prediction_list_local.append(prediction.numpy()[0,0,:])
+            k_omegas = koopman_evolved
+            prediction_list_local.append(prediction.numpy()[0,0,:])     
         
         k_aux.reset_states()
         x_t_local = np.asarray(prediction_list_local)
         prediction_list_global.append(prediction_list_local)
+        k_embeddings_list_global.append(k_embeddings_list_local)
+        eigen_value_global.append(eigen_value_local)
 
     x_t = np.asarray(prediction_list_global)
-    x_diff = helpfunc.difference(x_t_true[:,2:time_steps+1,:], x_t[:,2:,:])
+    k_embeddings = np.asarray(k_embeddings_list_global)
+    time = np.arange(len(x_t))
+    x_diff = helpfunc.difference(x_t_true, x_t)
     plot_diff(x_diff[:,:,0], time, True, parameter_list['checkpoint_expdir']+'/media/x_variable.png')
     plot_diff(x_diff[:,:,1], time, True, parameter_list['checkpoint_expdir']+'/media/y_variable.png')
-    x_t_true = np.concatenate((x_t_true[:,:time_steps+1,:], x_t), axis=0)
+    x_t_true = np.concatenate((x_t_true, x_t), axis=0)
     plot_figure(x_t_true, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png')
+    plot_figure(k_embeddings, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png', statespace=False, embed=True)
+    plot_figure(k_embeddings, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png', statespace=False, evalue=True)
+    plot_figure()
     animate(x_t_true, parameter_list['checkpoint_expdir'] + '/media/video.mp4')
     return None
 
