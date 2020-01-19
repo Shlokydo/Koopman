@@ -131,30 +131,36 @@ for i in parameter_list['experiments']:
 
     pickle_name = parameter_list['checkpoint_dir'] + '/params.pickle'
 
-    if not os.path.exists(parameter_list['checkpoint_dir']):
-        os.makedirs(parameter_list['log_dir'])
-        os.makedirs(parameter_list['checkpoint_dir'])
-        os.makedirs(parameter_list['checkpoint_expdir'] + '/media')
-
-    elif os.path.isfile(pickle_name):
-        parameter_list = helpfunc.read_pickle(pickle_name)
-
-    else:
-        print('No pickle file exits at {}'.format(pickle_name))
-        shutil.rmtree(parameter_list['checkpoint_expdir'])
-        sys.exit()
-
-    start = time.time()
-    # if multi_flag:
     if flag == 'train':
+
+        if not os.path.exists(parameter_list['checkpoint_dir']):
+            os.makedirs(parameter_list['log_dir'])
+            os.makedirs(parameter_list['checkpoint_dir'])
+            os.makedirs(parameter_list['checkpoint_expdir'] + '/media')
+
+        elif os.path.isfile(pickle_name):
+            parameter_list = helpfunc.read_pickle(pickle_name)
+        
+        else:
+            print('No pickle file exits at {}'.format(pickle_name))
+            shutil.rmtree(parameter_list['checkpoint_expdir'])
+            sys.exit()
+
         print('Multi GPU {}ing'.format(flag))
         parameter_list['delta_t'] = args.delta_t
         parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
         parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list))
         helpfunc.write_pickle(parameter_list, pickle_name)
+
     else:
-        print('Testing...')
-        parameter_list['delta_t'] = args.delta_t
-        parameter_list = testing.traintest(copy.deepcopy(parameter_list))
-    # else:
-    #     print('Single/No GPU Training not available')
+        
+        if os.path.isfile(pickle_name):
+            parameter_list = helpfunc.read_pickle(pickle_name)
+            print('Testing...')
+            parameter_list['delta_t'] = args.delta_t
+            parameter_list = testing.traintest(copy.deepcopy(parameter_list))
+        
+        else:
+            print('No pickle file exits at {}'.format(pickle_name))
+            shutil.rmtree(parameter_list['checkpoint_expdir'])
+            sys.exit()
