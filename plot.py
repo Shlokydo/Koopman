@@ -43,7 +43,7 @@ def plot_figure(x_t, save_image, name, statespace = True, embed = False, evalue 
     if statespace:
         # choose a different color for each trajectory
         color_count = np.linspace(0,1,x_t.shape[0]/2)
-        colors = plt.cm.viridis(concat_list)
+        colors = plt.cm.viridis(color_count)
         mid = int(x_t.shape[0]/2)
         for j in range(mid):
             lines = ax.plot(x_t[j,:,0], x_t[j,:,1], '-', label = f'Trajectory {j+1}', c=colors[j])
@@ -54,7 +54,7 @@ def plot_figure(x_t, save_image, name, statespace = True, embed = False, evalue 
     elif embed:
 
         color_count = np.linspace(0,1,x_t.shape[0])
-        colors = plt.cm.viridis(concat_list)
+        colors = plt.cm.viridis(color_count)
 
         for j in range(int(x_t.shape[0])):
             lines = ax.plot(x_t[j,:,0], x_t[j,:,1], ':', label = f'Trajectory {j+1}', c=colors[j])
@@ -63,14 +63,14 @@ def plot_figure(x_t, save_image, name, statespace = True, embed = False, evalue 
     elif evalue:
 
         color_count = np.linspace(0,1,x_t.shape[0])
-        colors = plt.cm.viridis(concat_list)
+        colors = plt.cm.viridis(color_count)
 
         for j in range(int(x_t.shape[0])):
-            lines = ax.scatter(x_t[j,:,0], x_t[j,:,1], label = f'Trajectory {j+1}', c=colors[j])
+            lines = ax.scatter(x_t[j,:,0], x_t[j,:,1], label = f'Trajectory {j+1}', c=colors[j], size = 2)
 
     ax.margins(0.001)
     ax.legend()
-    plt.show()
+    #plt.show()
     if save_image == True:
         fig.savefig(name, format= 'png', dpi = 1200)
     return
@@ -105,7 +105,7 @@ def plot_diff(x_t, time, save_image, name):
     ax.margins(0.001)
     ax.legend()
     plt.grid(True)
-    plt.show()
+    #plt.show()
     if save_image == True:
         fig.savefig(name, format= 'png', dpi = 1200)
     return

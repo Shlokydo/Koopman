@@ -110,7 +110,6 @@ def nl_pendulum(extension_list, N = 10, max_time = 10, delta_t= 0.2):
     
     x_t_new = []
     for x0i in x:
-        print(x0i)
         potential = 0.5*(np.power(x0i[1],2)) - np.cos(x0i[0])
         if potential < 0.99:
             x_t_new.append(integrate.odeint(nl_pendulum_deriv, x0i, time))

@@ -11,7 +11,7 @@ from plot import plot_figure, plot_diff, animate
 
 def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj = 20):
 
-    time_step = parameter_list['num_timesteps'] + time_steps - 1
+    steps = parameter_list['num_timesteps'] + time_steps
     dataframe = helpfunc.import_datset(parameter_list['dataset'], parameter_list['key_test'])
 
     #Converting dataframe to numpy array
@@ -29,14 +29,11 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
     #Generate split x and y sequence from the dataset
     initial_dataset_x = helpfunc.sequences_test(initial_dataset, parameter_list['num_timesteps'])
 
-    #Shuffling the dataset
-    initial_dataset_x = helpfunc.np_array_shuffle(initial_dataset_x, initial_dataset_y)
-
     x_t_true = initial_dataset_x[:N_traj]
     extension_list = x_t_true[:,-1,:]
 
     x_t = helpfunc.nl_pendulum(extension_list, N= N_traj, delta_t=parameter_list['delta_t'])
-    x_t_true = np.concatenate((x_t_true, x_t[:time_steps]), axis=1)
+    x_t_true = np.concatenate((x_t_true, x_t[:,1:time_steps+1,:]), axis=1)
     prediction_list_global = []
     k_embeddings_list_global = []
     eigen_value_global = []
@@ -50,7 +47,7 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
         
         k_embeddings_cur = encoder(input_value)
         k_embeddings_list_local.append(k_embeddings_cur.numpy()[0,0,:])
-        for i in range(time_step-1):
+        for i in range(steps-1):
             k_omegas = k_aux(k_embeddings_cur)
             k_embeddings_list_local.append(k_omegas.numpy()[0,0,:])
             eigen_value_local.append(k_omegas.numpy()[0,0,:])
@@ -68,15 +65,15 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
 
     x_t = np.asarray(prediction_list_global)
     k_embeddings = np.asarray(k_embeddings_list_global)
-    time = np.arange(len(x_t))
+    eigen_value = np.asarray(eigen_value_global)
+    time = np.arange(x_t.shape[1])
     x_diff = helpfunc.difference(x_t_true, x_t)
     plot_diff(x_diff[:,:,0], time, True, parameter_list['checkpoint_expdir']+'/media/x_variable.png')
     plot_diff(x_diff[:,:,1], time, True, parameter_list['checkpoint_expdir']+'/media/y_variable.png')
     x_t_true = np.concatenate((x_t_true, x_t), axis=0)
     plot_figure(x_t_true, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png')
-    plot_figure(k_embeddings, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png', statespace=False, embed=True)
-    plot_figure(k_embeddings, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png', statespace=False, evalue=True)
-    plot_figure()
+    plot_figure(k_embeddings, True, parameter_list['checkpoint_expdir'] + '/media/k_embeddings.png', statespace=False, embed=True)
+    plot_figure(eigen_value, True, parameter_list['checkpoint_expdir'] + '/media/eigen_value.png', statespace=False, evalue=True)
     animate(x_t_true, parameter_list['checkpoint_expdir'] + '/media/video.mp4')
     return None
 
