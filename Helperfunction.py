@@ -97,7 +97,7 @@ def input_generator(input_value):
     input_value = np.expand_dims(input_value, axis=0)
     return input_value
 
-def nl_pendulum(extension_list, N = 10, max_time = 10, delta_t= 0.2):
+def nl_pendulum(extension_list, time):
 
     def nl_pendulum_deriv(x_y, t0):
         """Compute the time-derivative."""
@@ -106,13 +106,10 @@ def nl_pendulum(extension_list, N = 10, max_time = 10, delta_t= 0.2):
 
     x = extension_list
     # Solve for the trajectories
-    time = np.arange(0, max_time, delta_t)
     
     x_t_new = []
     for x0i in x:
-        potential = 0.5*(np.power(x0i[1],2)) - np.cos(x0i[0])
-        if potential < 0.99:
-            x_t_new.append(integrate.odeint(nl_pendulum_deriv, x0i, time))
+        x_t_new.append(integrate.odeint(nl_pendulum_deriv, x0i, time))
             
     x_t_new = np.asarray(x_t_new)
 

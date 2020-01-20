@@ -14,7 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 from mpl_toolkits.axisartist.axislines import SubplotZero
 
-def plot_figure(x_t, save_image, name, statespace = True, embed = False, evalue = False):
+def plot_figure(x_t, save_image, name, title, statespace = True, embed = False, evalue = False):
     fig = plt.figure()
     ax = SubplotZero(fig, 111)
     fig.add_subplot(ax)
@@ -57,7 +57,7 @@ def plot_figure(x_t, save_image, name, statespace = True, embed = False, evalue 
         colors = plt.cm.viridis(color_count)
 
         for j in range(int(x_t.shape[0])):
-            lines = ax.plot(x_t[j,:,0], x_t[j,:,1], ':', label = f'Trajectory {j+1}', c=colors[j])
+            lines = ax.plot(x_t[j,:,0], x_t[j,:,1], '--', label = f'Trajectory {j+1}', c=colors[j])
             plt.setp(lines, linewidth=1)
 
     elif evalue:
@@ -66,16 +66,17 @@ def plot_figure(x_t, save_image, name, statespace = True, embed = False, evalue 
         colors = plt.cm.viridis(color_count)
 
         for j in range(int(x_t.shape[0])):
-            lines = ax.scatter(x_t[j,:,0], x_t[j,:,1], label = f'Trajectory {j+1}', c=colors[j], size = 2)
+            lines = ax.scatter(x_t[j,:,0], x_t[j,:,1], label = f'Trajectory {j+1}', c=colors[j], s = 4)
 
     ax.margins(0.001)
-    ax.legend()
+    ax.legend(loc=1, fontsize='xx-small')
+    ax.set_title(title)
     #plt.show()
     if save_image == True:
         fig.savefig(name, format= 'png', dpi = 1200)
     return
 
-def plot_diff(x_t, time, save_image, name):
+def plot_diff(x_t, time, save_image, name, title):
     fig = plt.figure()
     ax = SubplotZero(fig, 111)
     fig.add_subplot(ax)
@@ -99,11 +100,12 @@ def plot_diff(x_t, time, save_image, name):
     colors = plt.cm.viridis(np.linspace(0, 1, x_t.shape[0]))
 
     for j in range(x_t.shape[0]):
-        lines = ax.plot(time[:x_t.shape[1]], x_t[j,:], '-*', c=colors[j], label=f'Trajectory {j+1}')
+        lines = ax.plot(time[:x_t.shape[1]], x_t[j,:], '--', c=colors[j], label=f'Trajectory {j+1}')
         plt.setp(lines, linewidth=1)
             
     ax.margins(0.001)
-    ax.legend()
+    ax.legend(loc=1, fontsize='xx-small')
+    ax.set_title(title)
     plt.grid(True)
     #plt.show()
     if save_image == True:
