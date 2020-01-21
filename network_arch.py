@@ -74,6 +74,8 @@ class koopman_aux_net(tf.keras.Model):
 
     def __init__(self, parameter_list, name='Koopman_Aux'):
         super(koopman_aux_net, self).__init__()
+        self.nreal = parameter_list['num_real']
+        self.ncomplex = parameter_list['num_complex_pairs']
         self.units_r = parameter_list['kaux_units_real']
         self.width_r = parameter_list['kaux_width_real']
         self.units_c = parameter_list['kaux_units_complex']
@@ -111,16 +113,29 @@ class koopman_aux_net(tf.keras.Model):
         #print('Shape of the complex input: {}'.format(input_complex.shape))
 
         try:
-            x = self.real_layers(input_real)
+            real = tf.TensorArray(tf.float32, size = self.nreal, element_shape=(inputs.shape[0], inputs.shape[1], 1))
+            for i in range(self.nreal):
+                x = self.real_layers(input_real)
+                real = real.write(i, x)
+            real = real.stack()
+            real = tf.transpose(real, [1, 2, 0, 3])
+            real = tf.reshape(real, (real.shape[0], comp[1], comp.shape[2] * comp.shape[3]))
         except:
-            x = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
+            real = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
 
         try:
-            y = self.complex_layers(input_complex)
+            comp = tf.TensorArray(tf.float32, size = self.ncomplex, element_shape=(inputs.shape[0], inputs.shape[1], 2))
+            for i in range(self.ncomplex):
+                input_complex = tf.reduce_mean(tf.square(input_complex), axis = 2, keep_dims = True)
+                y = self.complex_layers(input_complex)
+                comp = comp.write(i, y)
+            comp = comp.stack()
+            comp = tf.transpose(comp, [1, 2, 0, 3])
+            comp = tf.reshape(comp, (comp.shape[0], comp[1], comp.shape[2] * comp.shape[3]))
         except:
-            y = tf.zeros((inputs.shape[0], inputs.shape[1], 1))
+            comp = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
 
-        ret = tf.concat([x,y], axis=2)
+        ret = tf.concat([real,comp], axis=2)
         #print('Shape of the returning tensor: {}'.format(ret.shape))
         return ret
 

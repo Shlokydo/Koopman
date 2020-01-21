@@ -110,7 +110,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
                 #Calculating relative loss
                 loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, weighted = parameter_list['weighted'])
                 reconstruction_loss = compute_loss(t_current, t_reconstruction, weighted = parameter_list['weighted'])
-                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted'])
+                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted']) / (parameter_list['num_timesteps'] - 1)
 
                 loss = loss_next_prediction
 
@@ -130,7 +130,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
             #Calculating relative loss
             loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, 0)
             reconstruction_loss = compute_loss(t_current, t_reconstruction, 0)
-            linearization_loss = compute_loss(t_embedding, t_jordan, 0)
+            linearization_loss = compute_loss(t_embedding, t_jordan, 0) / (parameter_list['num_timesteps'] - 1)
 
             loss = loss_next_prediction
 
