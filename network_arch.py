@@ -82,10 +82,10 @@ class kaux_real(tf.keras.Model):
 
     def build(self, input_shape):
         
-        koopman_layer_real = []
+        self.koopman_layer_real = []
         for i in range(self.width_r):
-            koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
         self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
 
@@ -106,16 +106,16 @@ class kaux_complex(tf.keras.Model):
     
     def build(self, input_shape):
 
-        koopman_layer_complex = []
+        self.koopman_layer_complex = []
         for j in range(self.width_c):
-            koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
         self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
     
     def call(self, inputs):
 
-        inputs = tf.reduce_mean(tf.square(inputs), axis = 2, keep_dims = True)
+        inputs = tf.reduce_mean(tf.square(inputs), axis = 2, keepdims = True)
         return self.complex_layers(inputs)
 
 #Code for Koopman Operator Auxilary Network
@@ -125,18 +125,21 @@ class koopman_aux_net(tf.keras.Model):
         super(koopman_aux_net, self).__init__()
         self.nreal = parameter_list['num_real']
         self.ncomplex = parameter_list['num_complex_pairs']
-        self.kaux_r = kaux_real(parameter_list)
-        self.kaux_c = kaux_complex(parameter_list)
+        if self.nreal:
+            self.kaux_r = kaux_real(parameter_list)
+        if self.ncomplex:
+            self.kaux_c = kaux_complex(parameter_list)
+        self.output_units_complex = parameter_list['kaux_output_units_complex']
+        self.output_units_real = parameter_list['kaux_output_units_real']
 
     def call(self, inputs):
 
-        print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
+        #print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
         input_real, input_complex = tf.split(inputs, [self.output_units_real, self.output_units_complex], axis= 2)
-        print('Shape of the real input: {}'.format(input_real.shape))
-        print('Shape of the complex input: {}'.format(input_complex.shape))
+        #print('Shape of the real input: {}'.format(input_real.shape))
+        #print('Shape of the complex input: {}'.format(input_complex.shape))
 
         try:
-            # real = tf.TensorArray(tf.float32, size = self.nreal, element_shape=(inputs.shape[0], inputs.shape[1], 1))
             real = []
             for i in range(self.nreal):
                 x = self.kaux_r(input_real)
@@ -146,9 +149,8 @@ class koopman_aux_net(tf.keras.Model):
             real_tensor = tf.zeros((inputs.shape[0], inputs.shape[1], 0))
 
         try:
-            # comp = tf.TensorArray(tf.float32, size = self.ncomplex, element_shape=(inputs.shape[0], inputs.shape[1], 2))
             comp = []
-            for i in range(self.ncomplex):
+            for j in range(self.ncomplex):
                 inp_complex = input_complex[:,:,j:j+2]
                 y = self.kaux_c(inp_complex)
                 comp.append(y)

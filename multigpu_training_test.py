@@ -116,7 +116,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
 
             metric_device = compute_metric(t_next_actual, t_next_predicted)
 
-            gradients = tape.gradient([loss, linearization_loss], preliminary_net.trainable_variables)
+            gradients = tape.gradient([loss, linearization_loss, reconstruction_loss], preliminary_net.trainable_variables)
             optimizer.apply_gradients(zip(gradients, preliminary_net.trainable_weights))
 
             return loss, metric_device, reconstruction_loss, linearization_loss
