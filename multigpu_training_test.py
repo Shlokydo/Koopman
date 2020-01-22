@@ -110,7 +110,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
                 #Calculating relative loss
                 loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, weighted = parameter_list['weighted'])
                 reconstruction_loss = compute_loss(t_current, t_reconstruction, weighted = parameter_list['weighted'])
-                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted']) / (parameter_list['num_timesteps'] - 1)
+                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted']) 
 
                 loss = loss_next_prediction
 
@@ -130,7 +130,7 @@ def train(parameter_list, preliminary_net, checkpoint, manager, summary_writer, 
             #Calculating relative loss
             loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, 0)
             reconstruction_loss = compute_loss(t_current, t_reconstruction, 0)
-            linearization_loss = compute_loss(t_embedding, t_jordan, 0) / (parameter_list['num_timesteps'] - 1)
+            linearization_loss = compute_loss(t_embedding, t_jordan, 0)
 
             loss = loss_next_prediction
 
@@ -254,7 +254,9 @@ def traintest(parameter_list):
 
         encoder = net.encoder(parameter_list = parameter_list)
         decoder = net.decoder(parameter_list = parameter_list)
-        koopman_aux_net = net.koopman_aux_net(parameter_list = parameter_list)
+        kaux_real = net.kaux_real(parameter_list)
+        kaux_complex = net.kaux_complex(parameter_list)
+        koopman_aux_net = net.koopman_aux_net(kaux_real, kaux_complex, parameter_list = parameter_list)
         koopman_jordan = net.koopman_jordan(parameter_list = parameter_list)
 
         preliminary_net = net.preliminary_net(encoder, decoder, koopman_aux_net, koopman_jordan)
@@ -265,7 +267,7 @@ def traintest(parameter_list):
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         #Defining the checkpoint instance
-        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), encoder = encoder, decoder = decoder, koopman_aux_net = koopman_aux_net, koopman_jordan = koopman_jordan, optimizer = optimizer)
+        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), encoder = encoder, decoder = decoder, kaux_real = kaux_real, kaux_complex = kaux_complex, koopman_jordan = koopman_jordan, optimizer = optimizer)
 
     #Creating summary writer
     summary_writer = tf.summary.create_file_writer(logdir= parameter_list['log_dir'])

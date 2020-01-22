@@ -77,15 +77,14 @@ class kaux_real(tf.keras.Model):
         self.units_r = parameter_list['kaux_units_real']
         self.width_r = parameter_list['kaux_width_real']
         self.activation = parameter_list['kp_activation']
-        self.output_units_real = parameter_list['kaux_output_units_real']
         self.statet = parameter_list['stateful']
 
     def build(self, input_shape):
         
         self.koopman_layer_real = []
         for i in range(self.width_r):
-            self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        self.koopman_layer_real.append(tf.keras.layers.LSTM(units= self.output_units_real, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            self.koopman_layer_real.append(tf.keras.layers.GRU(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        self.koopman_layer_real.append(tf.keras.layers.GRU(units= 1, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
         self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
 
@@ -101,15 +100,14 @@ class kaux_complex(tf.keras.Model):
         self.units_c = parameter_list['kaux_units_complex']
         self.width_c = parameter_list['kaux_width_complex'] 
         self.activation = parameter_list['kp_activation']
-        self.output_units_complex = parameter_list['kaux_output_units_complex']
         self.statet = parameter_list['stateful']
     
     def build(self, input_shape):
 
         self.koopman_layer_complex = []
         for j in range(self.width_c):
-            self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        self.koopman_layer_complex.append(tf.keras.layers.LSTM(units= self.output_units_complex, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+            self.koopman_layer_complex.append(tf.keras.layers.GRU(units= self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        self.koopman_layer_complex.append(tf.keras.layers.GRU(units= 2, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
 
         self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
     
@@ -121,14 +119,14 @@ class kaux_complex(tf.keras.Model):
 #Code for Koopman Operator Auxilary Network
 class koopman_aux_net(tf.keras.Model):
 
-    def __init__(self, parameter_list, name='Koopman_Aux'):
+    def __init__(self, kaux_real, kaux_complex, parameter_list, name='Koopman_Aux'):
         super(koopman_aux_net, self).__init__()
         self.nreal = parameter_list['num_real']
         self.ncomplex = parameter_list['num_complex_pairs']
         if self.nreal:
-            self.kaux_r = kaux_real(parameter_list)
+            self.kaux_r = kaux_real
         if self.ncomplex:
-            self.kaux_c = kaux_complex(parameter_list)
+            self.kaux_c = kaux_complex
         self.output_units_complex = parameter_list['kaux_output_units_complex']
         self.output_units_real = parameter_list['kaux_output_units_real']
 
