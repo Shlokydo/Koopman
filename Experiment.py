@@ -77,9 +77,11 @@ parameter_list['en_activation'] = 'relu'                #All same as encoder til
 parameter_list['en_initializer'] = 'glorot_uniform'
 
 #Koopman auxilary network
-parameter_list['kaux_units_real'] = args.kaux_units_real                                                        
+parameter_list['kaux_units_real'] = args.kaux_units_real         
+parameter_list['kaux_units_real'].append(1)                                     
 parameter_list['kaux_width_real'] = args.num_kaux_layers_real
 parameter_list['kaux_units_complex'] = args.kaux_units_complex 
+parameter_list['kaux_units_complex'].append(2)
 parameter_list['kaux_width_complex'] = args.num_kaux_layers_complex                                                      #Number of dense layers
 parameter_list['kaux_output_units_real'] = parameter_list['num_real']                 #Number of real outputs
 parameter_list['kaux_output_units_complex'] = parameter_list['num_complex_pairs'] * 2 #Number of complex outputs
@@ -104,7 +106,7 @@ parameter_list['lr_decay_steps'] = 500000                 #No of steps for learn
 parameter_list['dropout'] = 0.0                         #Dropout for the layers
 parameter_list['early_stop_patience'] =21900               #Patience in num of epochs for early stopping
 parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
-parameter_list['mth_cal_patience'] = 10                  #number of epochs after which mth loss is calculated
+parameter_list['mth_cal_patience'] = 10                  #number of epochs for which mth loss is calculated
 parameter_list['mth_no_cal_epochs'] = 50                #Number of epochs for which mth loss is not calculated
 parameter_list['weighted'] = args.weighted_loss
 parameter_list['reconst_hp'] = 0.001

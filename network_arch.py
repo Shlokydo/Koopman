@@ -81,16 +81,18 @@ class kaux_real(tf.keras.Model):
 
     def build(self, input_shape):
         
+        self.states = []
         self.koopman_layer_real = []
-        for i in range(self.width_r):
-            self.koopman_layer_real.append(tf.keras.layers.GRU(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        self.koopman_layer_real.append(tf.keras.layers.GRU(units= 1, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        for i in range(self.width_r + 1):
+            self.koopman_layer_real.append(tf.keras.layers.GRU(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet, return_state = True))
 
-        self.real_layers = tf.keras.Sequential(self.koopman_layer_real)
-
-    def call(self, inputs):
-
-        return self.real_layers(inputs)
+    def call(self, inputs, states):
+        
+        for i in range(len(self.koopman_layer_real)):
+            x, state = self.koopman_layer_real[i](inputs, initial_state = states[i])
+            states[i] = state
+            inputs = x
+        return x, states
 
 class kaux_complex(tf.keras.Model):
 
@@ -104,17 +106,18 @@ class kaux_complex(tf.keras.Model):
     
     def build(self, input_shape):
 
+        self.states = []
         self.koopman_layer_complex = []
-        for j in range(self.width_c):
-            self.koopman_layer_complex.append(tf.keras.layers.GRU(units= self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
-        self.koopman_layer_complex.append(tf.keras.layers.GRU(units= 2, activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet))
+        for j in range(self.width_c + 1):
+            self.koopman_layer_complex.append(tf.keras.layers.GRU(units = self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet, return_state = True))
 
-        self.complex_layers = tf.keras.Sequential(self.koopman_layer_complex)
-    
-    def call(self, inputs):
-
+    def call(self, inputs, states):
         inputs = tf.reduce_mean(tf.square(inputs), axis = 2, keepdims = True)
-        return self.complex_layers(inputs)
+        for i in range(len(self.koopman_layer_complex)):
+            y, state = self.koopman_layer_complex[i](inputs, initial_state = states[i])
+            states[i] = state
+            inputs = y
+        return y, states
 
 #Code for Koopman Operator Auxilary Network
 class koopman_aux_net(tf.keras.Model):
@@ -130,17 +133,21 @@ class koopman_aux_net(tf.keras.Model):
         self.output_units_complex = parameter_list['kaux_output_units_complex']
         self.output_units_real = parameter_list['kaux_output_units_real']
 
-    def call(self, inputs):
+    def call(self, inputs, states):
 
-        #print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
+        
+        [r_state_s, c_state_s] = states
+
+        # print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
         input_real, input_complex = tf.split(inputs, [self.output_units_real, self.output_units_complex], axis= 2)
-        #print('Shape of the real input: {}'.format(input_real.shape))
-        #print('Shape of the complex input: {}'.format(input_complex.shape))
+        # print('Shape of the real input: {}'.format(input_real.shape))
+        # print('Shape of the complex input: {}'.format(input_complex.shape))
 
         try:
             real = []
             for i in range(self.nreal):
-                x = self.kaux_r(input_real)
+                x, r_state = self.kaux_r(input_real, r_state_s[i])
+                r_state_s[i] = r_state
                 real.append(x)
             real_tensor = tf.concat(real, 2)
         except:
@@ -150,7 +157,8 @@ class koopman_aux_net(tf.keras.Model):
             comp = []
             for j in range(self.ncomplex):
                 inp_complex = input_complex[:,:,j:j+2]
-                y = self.kaux_c(inp_complex)
+                y, c_state = self.kaux_c(inp_complex, c_state_s[j])
+                c_state_s[j] = c_state
                 comp.append(y)
             comp_tensor = tf.concat(comp, 2)
         except:
@@ -158,7 +166,7 @@ class koopman_aux_net(tf.keras.Model):
 
         ret = tf.concat([real_tensor,comp_tensor], axis=2)
         #print('Shape of the returning tensor: {}'.format(ret.shape))
-        return ret
+        return ret, [r_state_s, c_state_s]
 
         def get_config(self):
             configuration = {'Units' : self.units,
@@ -219,19 +227,31 @@ class koopman_jordan(tf.keras.Model):
 
 class preliminary_net(tf.keras.Model):
 
-    def __init__(self, encoder, decoder, k_net, k_jor, **kwargs):
+    def __init__(self, parameter_list, encoder, decoder, k_net, k_jor, **kwargs):
         super(preliminary_net, self).__init__()
         self.encoder = encoder
         self.koopman_aux_net = k_net
         self.koopman_jordan = k_jor
         self.decoder = decoder
 
+        self.width_r = parameter_list['kaux_width_real'] 
+        self.width_c = parameter_list['kaux_width_complex'] 
+        self.units_r = parameter_list['kaux_units_real']        
+        self.units_c = parameter_list['kaux_units_complex'] 
+        self.nreal = parameter_list['num_real']
+        self.ncomplex = parameter_list['num_complex_pairs']
+
+    def build(self, input_shape):
+        self.r = [tf.zeros((input_shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
+        self.c = [tf.zeros((input_shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+
     def call(self, inputs):
 
+        initial_stat = [[self.r for _ in range(self.nreal)], [self.c for _ in range(self.ncomplex)]]
         #This part contributes towards the (n+1)th prediction loss from nth
         k_embeddings_cur = self.encoder(inputs)
 
-        k_omegas = self.koopman_aux_net(k_embeddings_cur)
+        k_omegas, _ = self.koopman_aux_net(k_embeddings_cur, initial_stat)
         k_jordan_input = tf.concat([k_omegas, k_embeddings_cur], axis= 2)
         k_jordan_output = self.koopman_jordan(k_jordan_input)
 
@@ -240,3 +260,53 @@ class preliminary_net(tf.keras.Model):
         input_reconstruct = self.decoder(k_embeddings_cur)
 
         return next_state_space, input_reconstruct, k_embeddings_cur[:,1:,:], k_jordan_output[:,0:-1,:]
+
+class loop_net(tf.keras.Model):
+
+    def __init__(self, parameter_list, encoder, decoder, k_net, k_jor, **kwargs):
+        super(loop_net, self).__init__()
+        self.encoder = encoder
+        self.koopman_aux_net = k_net
+        self.koopman_jordan = k_jor
+        self.decoder = decoder
+
+        self.width_r = parameter_list['kaux_width_real'] 
+        self.width_c = parameter_list['kaux_width_complex']
+        self.units_r = parameter_list['kaux_units_real']        
+        self.units_c = parameter_list['kaux_units_complex'] 
+        self.nreal = parameter_list['num_real']
+        self.ncomplex = parameter_list['num_complex_pairs']
+        
+        self.mth_step = parameter_list['mth_step']
+    
+    def build(self, input_shape):
+        self.iterations = tf.constant(input_shape[1] - self.mth_step)
+        self.r = [tf.zeros((input_shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
+        self.c = [tf.zeros((input_shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+
+    def call(self, inputs):
+        inputs_for_mth = inputs[:,:self.iterations,:] 
+        next_state_space_mth = tf.TensorArray(tf.float32, size = self.iterations, element_shape = (inputs.shape[0], 1, inputs.shape[2]))
+        k_embeddings_cur = self.encoder(inputs_for_mth)
+
+        for i in tf.range(self.iterations):
+            initial_stat = [[self.r for _ in range(self.nreal)], [self.c for _ in range(self.ncomplex)]]
+            k_embeddings_cur_local = tf.expand_dims(k_embeddings_cur[:,i,:], axis = 1)
+            k_jordan_output_local = tf.zeros_like((k_embeddings_cur_local), tf.float32)
+            next_state_space_mth_local = tf.zeros((inputs.shape[0], 1, inputs.shape[2]), tf.float32)
+
+            for j in tf.range(self.mth_step):
+                k_omegas_local, states = self.koopman_aux_net(k_embeddings_cur_local, initial_stat)
+                initial_stat = states
+                
+                k_jordan_input_local = tf.concat([k_omegas_local, k_embeddings_cur_local], axis = 2)
+                k_jordan_output_local = self.koopman_jordan(k_jordan_input_local)
+            
+            next_state_space_mth_local = self.decoder(k_jordan_output_local)
+            next_state_space_mth = next_state_space_mth.write(i, next_state_space_mth_local)
+
+        next_state_space_mth = next_state_space_mth.stack()
+        next_state_space_mth = tf.squeeze(next_state_space_mth)
+        next_state_space_mth = tf.transpose(next_state_space_mth, [1, 0, 2])
+
+        return next_state_space_mth
