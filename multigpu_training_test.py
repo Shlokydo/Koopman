@@ -9,11 +9,13 @@ import network_arch as net
 import Helperfunction as helpfunc
 from plot import plot_figure, plot_diff, animate
 
+import optuna
+
 tf.autograph.set_verbosity(10)
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
-def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer):
+def train(trial, parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer):
     #Importing dataset into dataframe
     dataframe = helpfunc.import_datset(parameter_list['dataset'], parameter_list['key'])
 
@@ -257,6 +259,14 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 if (global_epoch > parameter_list['only_RNN']):
                     if val_loss_min > v_loss:
                         val_loss_min = v_loss
+
+                        # Report intermediate objective value.
+                        trial.report(val_loss_min, epoch)
+
+                        # Handle pruning based on the intermediate value.
+                        if trial.should_prune():
+                            raise optuna.exceptions.TrialPruned()
+
                         checkpoint.epoch.assign_add(1)
                         if  not (int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint']):
                             save_path = manager.save()
@@ -326,15 +336,19 @@ def traintest(trial, parameter_list, flag):
         print("Restored from {}".format(manager.latest_checkpoint))
 
         print('Starting training of Experiment... \n')
-        return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        return train(trial, parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
 
     else:
         print("No checkpoint exists.")
 
         print('Initializing from scratch for Experiment... \n')
+<<<<<<< HEAD
         return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
 <<<<<<< HEAD
 =======
+=======
+        return train(trial, parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+>>>>>>> Added pruners
 
 def get_model(trial, parameter_list, flag):
 
@@ -363,7 +377,7 @@ def get_model(trial, parameter_list, flag):
     parameter_list['kaux_units_complex'].append(2)
 
     if flag == 'train':
-        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + str(parameter_list['en_width']) + str(parameter_list['kaux_width_real']) + str(parameter_list['kaux_width_complex']) + '_' + '_'.join(map(str, parameter_list['en_units'])) + '_' + '_'.join(map(str, parameter_list['kaux_units_complex']))
+        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/' + str(parameter_list['en_width']) + str(parameter_list['kaux_width_real']) + str(parameter_list['kaux_width_complex']) + '_' + '_'.join(map(str, parameter_list['en_units'])) + '_' + '_'.join(map(str, parameter_list['kaux_units_complex']))
         parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
         if not os.path.exists(parameter_list['checkpoint_dir']):
             os.makedirs(parameter_list['log_dir'])

@@ -42,6 +42,7 @@ parser.add_argument("--kaux_units_complex", "--cu_kaux", default=[80], type=int,
 
 parser.add_argument("--real_ef", default=1, type=int, help="Number of real eigenfunctions")
 parser.add_argument("--complex_ef", default=1, type=int, help="Number of complex eigenfunctions")
+parser.add_argument("--num_optuna_trials", "--opt_trials", type=int, default=10, help='num of Optuna study trials to make')
 
 parser.add_argument("--weighted_loss", "--wl", default=0, type=int, help="Weighted loss function as in Otto et.al")
 parser.add_argument("--lr_decayrate", "--lrdr", default=0.1, type=float, help="Learning rate decay rate")
@@ -138,7 +139,7 @@ for i in parameter_list['experiments']:
     parameter_list['checkpoint_expdir'] = parameter_list['checkpoint_dir']
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
     
-    study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///example.db', load_if_exists=True)
+    study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///example.db', load_if_exists=True, pruner=optuna.pruners.PercentilePruner(75.0))
 
     parameter_list['pickle_name'] = parameter_list['checkpoint_expdir'] + '/optuna_params.pickle'
 
@@ -160,7 +161,7 @@ for i in parameter_list['experiments']:
         parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '_optuna_'
 
         parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
-        study.optimize(lambda trial: multi_train.traintest(trial, copy.deepcopy(parameter_list), flag), n_trials=4)
+        study.optimize(lambda trial: multi_train.traintest(trial, copy.deepcopy(parameter_list), flag), n_trials=args.num_optuna_trials)
         df = study.trials_dataframe()
         df.to_excel('optuna.xlsx')
 
