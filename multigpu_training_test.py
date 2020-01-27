@@ -352,29 +352,29 @@ def traintest(trial, parameter_list, flag):
 
 def get_model(trial, parameter_list, flag):
 
-    parameter_list['en_width'] = trial.suggest_int('num_en/de_layers', 1, 4)
+    parameter_list['en_width'] = trial.suggest_int('num_en/de_layers', parameter_list['en_width_r'][0], parameter_list['en_width_r'][1])
     parameter_list['de_width'] = parameter_list['en_width']
-
-    if parameter_list['num_real']:
-        parameter_list['kaux_width_real'] = trial.suggest_int('num_kr_layers', 1, 2)
-    if parameter_list['num_complex_pairs']:
-        parameter_list['kaux_width_complex'] = trial.suggest_int('num_kc_layers', 1, 2)
 
     parameter_list['en_units'] = []
     for i in range(parameter_list['en_width']):
-        parameter_list['en_units'].append(trial.suggest_int('layer_' + str(i), 20, 150))
+        parameter_list['en_units'].append(trial.suggest_int('layer_' + str(i), parameter_list['en_units_r'][0], parameter_list['en_units_r'][1]))
     parameter_list['de_units'] = parameter_list['en_units'][::-1]
 
-
+    parameter_list['kaux_width_real'] = 0
     parameter_list['kaux_units_real'] = []
-    for i in range(parameter_list['kaux_width_real']):
-        parameter_list['kaux_units_real'].append(trial.suggest_int('kr_layer_' + str(i), 70, 200))
-    parameter_list['kaux_units_real'].append(1)
+    if parameter_list['num_real']:
+        parameter_list['kaux_width_real'] = trial.suggest_int('num_kr_layers', parameter_list['kaux_width_real_r'][0], parameter_list['kaux_width_real_r'][1])
+        for i in range(parameter_list['kaux_width_real']):
+            parameter_list['kaux_units_real'].append(trial.suggest_int('kr_layer_' + str(i), parameter_list['kaux_units_real_r'][0], parameter_list['kaux_units_real_r'][1]))
+        parameter_list['kaux_units_real'].append(1)
 
+    parameter_list['kaux_width_complex'] = 0
     parameter_list['kaux_units_complex'] = []
-    for i in range(parameter_list['kaux_width_complex']):
-        parameter_list['kaux_units_complex'].append(trial.suggest_int('kc_layer_' + str(i), 70, 200))
-    parameter_list['kaux_units_complex'].append(2)
+    if parameter_list['num_complex_pairs']:
+        parameter_list['kaux_width_complex'] = trial.suggest_int('num_kc_layers', parameter_list['kaux_width_complex_r'][0], parameter_list['kaux_width_complex_r'][1])
+        for i in range(parameter_list['kaux_width_complex']):
+            parameter_list['kaux_units_complex'].append(trial.suggest_int('kc_layer_' + str(i), parameter_list['kaux_units_complex_r'][0], parameter_list['kaux_units_complex_r'][1]))
+        parameter_list['kaux_units_complex'].append(2)
 
     if flag == 'train':
         parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/' + str(parameter_list['en_width']) + str(parameter_list['kaux_width_real']) + str(parameter_list['kaux_width_complex']) + '_' + '_'.join(map(str, parameter_list['en_units'])) + '_' + '_'.join(map(str, parameter_list['kaux_units_complex']))

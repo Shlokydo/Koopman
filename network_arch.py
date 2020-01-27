@@ -243,8 +243,15 @@ class preliminary_net(tf.keras.Model):
 
     def call(self, inputs):
 
-        r = [tf.zeros((inputs.shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
-        c = [tf.zeros((inputs.shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+        try:
+            r = [tf.zeros((inputs.shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
+        except:
+            r = []
+        try:
+            c = [tf.zeros((inputs.shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+        except:
+            c = []
+        
         initial_stat = [[r for _ in range(self.nreal)], [c for _ in range(self.ncomplex)]]
         #This part contributes towards the (n+1)th prediction loss from nth
         k_embeddings_cur = self.encoder(inputs)
@@ -285,8 +292,14 @@ class loop_net(tf.keras.Model):
         next_state_space_mth = tf.TensorArray(tf.float32, size = self.iterations, element_shape = (inputs.shape[0], 1, inputs.shape[2]))
         k_embeddings_cur = self.encoder(inputs_for_mth)
 
-        r = [tf.zeros((inputs.shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
-        c = [tf.zeros((inputs.shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+        try:
+            r = [tf.zeros((inputs.shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
+        except:
+            r = []
+        try:
+            c = [tf.zeros((inputs.shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+        except:
+            c = []
 
         for i in tf.range(self.iterations):
             initial_stat = [[r for _ in range(self.nreal)], [c for _ in range(self.ncomplex)]]
