@@ -241,13 +241,11 @@ class preliminary_net(tf.keras.Model):
         self.nreal = parameter_list['num_real']
         self.ncomplex = parameter_list['num_complex_pairs']
 
-    def build(self, input_shape):
-        self.r = [tf.zeros((input_shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
-        self.c = [tf.zeros((input_shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
-
     def call(self, inputs):
 
-        initial_stat = [[self.r for _ in range(self.nreal)], [self.c for _ in range(self.ncomplex)]]
+        r = [tf.zeros((inputs.shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
+        c = [tf.zeros((inputs.shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+        initial_stat = [[r for _ in range(self.nreal)], [c for _ in range(self.ncomplex)]]
         #This part contributes towards the (n+1)th prediction loss from nth
         k_embeddings_cur = self.encoder(inputs)
 
@@ -281,16 +279,17 @@ class loop_net(tf.keras.Model):
     
     def build(self, input_shape):
         self.iterations = tf.constant(input_shape[1] - self.mth_step)
-        self.r = [tf.zeros((input_shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
-        self.c = [tf.zeros((input_shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
 
     def call(self, inputs):
         inputs_for_mth = inputs[:,:self.iterations,:] 
         next_state_space_mth = tf.TensorArray(tf.float32, size = self.iterations, element_shape = (inputs.shape[0], 1, inputs.shape[2]))
         k_embeddings_cur = self.encoder(inputs_for_mth)
 
+        r = [tf.zeros((inputs.shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
+        c = [tf.zeros((inputs.shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
+
         for i in tf.range(self.iterations):
-            initial_stat = [[self.r for _ in range(self.nreal)], [self.c for _ in range(self.ncomplex)]]
+            initial_stat = [[r for _ in range(self.nreal)], [c for _ in range(self.ncomplex)]]
             k_embeddings_cur_local = tf.expand_dims(k_embeddings_cur[:,i,:], axis = 1)
             k_jordan_output_local = tf.zeros_like((k_embeddings_cur_local), tf.float32)
             next_state_space_mth_local = tf.zeros((inputs.shape[0], 1, inputs.shape[2]), tf.float32)
@@ -301,6 +300,7 @@ class loop_net(tf.keras.Model):
                 
                 k_jordan_input_local = tf.concat([k_omegas_local, k_embeddings_cur_local], axis = 2)
                 k_jordan_output_local = self.koopman_jordan(k_jordan_input_local)
+                k_omegas_local = k_jordan_output_local
             
             next_state_space_mth_local = self.decoder(k_jordan_output_local)
             next_state_space_mth = next_state_space_mth.write(i, next_state_space_mth_local)
