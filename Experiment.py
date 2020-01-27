@@ -11,13 +11,15 @@ import argparse
 import time
 import math
 
+import optuna
+
 import multigpu_training_test as multi_train
 import Helperfunction as helpfunc
 import tensorflow as tf
 import valtest as testing
 
 parser = argparse.ArgumentParser(description='Experiment controller')
-parser.add_argument("--t", default='train', type=str, help="Training or testing flag setter", choices=["train", "test"])
+parser.add_argument("--t", default='train', type=str, help="Training or testing flag setter", choices=["train", "best", "test"])
 parser.add_argument("--gpu", default=1, type=int, help="To enable/disable multi-gpu training. Default, true.", choices=[0, 1])
 parser.add_argument("--epoch", default=200, type=int, help="Set the number of epochs.")
 parser.add_argument("--experiment", "--exp", default="d", help="Name of the experiment(s)", nargs='*')
@@ -134,36 +136,71 @@ for i in parameter_list['experiments']:
 
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/exp_' + str(i)
     parameter_list['checkpoint_expdir'] = parameter_list['checkpoint_dir']
-    parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
     parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
+    
+    study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///example.db', load_if_exists=True)
 
-    pickle_name = parameter_list['checkpoint_dir'] + '/params.pickle'
+    parameter_list['pickle_name'] = parameter_list['checkpoint_expdir'] + '/optuna_params.pickle'
 
     if flag == 'train':
 
-        if not os.path.exists(parameter_list['checkpoint_dir']):
-            os.makedirs(parameter_list['log_dir'])
-            os.makedirs(parameter_list['checkpoint_dir'])
-            os.makedirs(parameter_list['checkpoint_expdir'] + '/media')
+        if not os.path.exists(parameter_list['checkpoint_expdir']):
+            print('\nWill make a experiment directory\n')
 
-        elif os.path.isfile(pickle_name):
-            parameter_list = helpfunc.read_pickle(pickle_name)
+        elif os.path.isfile(parameter_list['pickle_name']):
+            parameter_list = helpfunc.read_pickle(parameter_list['pickle_name'])
         
         else:
-            print('No pickle file exits at {}'.format(pickle_name))
+            print('No pickle file exits at {}'.format(parameter_list['pickle_name']))
             shutil.rmtree(parameter_list['checkpoint_expdir'])
             sys.exit()
 
         print('Multi GPU {}ing'.format(flag))
         parameter_list['delta_t'] = args.delta_t
-        parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
-        parameter_list =  multi_train.traintest(copy.deepcopy(parameter_list))
-        helpfunc.write_pickle(parameter_list, pickle_name)
+        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '_optuna_'
 
-    else:
+        parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+        study.optimize(lambda trial: multi_train.traintest(trial, copy.deepcopy(parameter_list), flag), n_trials=4)
+        df = study.trials_dataframe()
+        df.to_excel('optuna.xlsx')
+
+    elif flag == 'best':
+
+        if os.path.isfile(parameter_list['pickle_name']):
+            parameter_list = helpfunc.read_pickle(parameter_list['pickle_name'])
         
-        if os.path.isfile(pickle_name):
-            parameter_list = helpfunc.read_pickle(pickle_name)
+        else:
+            print('No pickle file exits at {}'.format(parameter_list['pickle_name']))
+            shutil.rmtree(cd_copy)
+            sys.exit()
+        
+        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '_optbest'
+        cd_copy = parameter_list['checkpoint_dir']
+        parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
+
+        if not os.path.exists(parameter_list['checkpoint_dir']):
+            os.makedirs(parameter_list['checkpoint_dir'] + '/media')
+            os.makedirs(parameter_list['log_dir'])
+            parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
+            os.makedirs(parameter_list['checkpoint_dir'])
+
+        print('Multi GPU {}ing'.format(flag + ' param training'))
+        parameter_list['delta_t'] = args.delta_t
+        parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
+        best_case = optuna.trial.FixedTrial(study.best_params)
+
+        parameter_list['pickle_name'] = parameter_list['checkpoint_dir'] + '/best_params.pickle'
+        parameter_list['global_epoch'] = 0
+        parameter_list['val_min'] = 100
+        multi_train.traintest(best_case, copy.deepcopy(parameter_list), flag)
+    
+    else:
+
+        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '_optbest'
+        parameter_list['pickle_name'] = parameter_list['checkpoint_dir'] + '/best_params.pickle'
+
+        if os.path.isfile(parameter_list['pickle_name']):
+            parameter_list = helpfunc.read_pickle(parameter_list['pickle_name'])
             print('Testing...')
             parameter_list['delta_t'] = args.delta_t
             parameter_list = testing.traintest(copy.deepcopy(parameter_list))

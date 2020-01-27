@@ -285,19 +285,19 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
     parameter_list['global_epoch'] = global_epoch
     parameter_list['val_min'] = val_loss_min
     print('\nNumber of iterations for optimizer: {}'.format(optimizer.iterations.numpy()))
-    return parameter_list
 
-def traintest(parameter_list):
+    helpfunc.write_pickle(parameter_list, parameter_list['pickle_name'])
+    
+    return val_loss_min
+
+def traintest(trial, parameter_list, flag):
 
     print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
 
     #Get the Model
     with mirrored_strategy.scope():
 
-        encoder = net.encoder(parameter_list = parameter_list)
-        decoder = net.decoder(parameter_list = parameter_list)
-        kaux_real = net.kaux_real(parameter_list)
-        kaux_complex = net.kaux_complex(parameter_list)
+        parameter_list, encoder, decoder, kaux_real, kaux_complex = get_model(trial, parameter_list, flag)
         koopman_aux_net = net.koopman_aux_net(kaux_real, kaux_complex, parameter_list = parameter_list)
         koopman_jordan = net.koopman_jordan(parameter_list = parameter_list)
 
@@ -333,3 +333,45 @@ def traintest(parameter_list):
 
         print('Initializing from scratch for Experiment... \n')
         return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+<<<<<<< HEAD
+=======
+
+def get_model(trial, parameter_list, flag):
+
+    parameter_list['en_width'] = trial.suggest_int('num_en/de_layers', 1, 4)
+    parameter_list['de_width'] = parameter_list['en_width']
+
+    if parameter_list['num_real']:
+        parameter_list['kaux_width_real'] = trial.suggest_int('num_kr_layers', 1, 2)
+    if parameter_list['num_complex_pairs']:
+        parameter_list['kaux_width_complex'] = trial.suggest_int('num_kc_layers', 1, 2)
+
+    parameter_list['en_units'] = []
+    for i in range(parameter_list['en_width']):
+        parameter_list['en_units'].append(trial.suggest_int('layer_' + str(i), 20, 150))
+    parameter_list['de_units'] = parameter_list['en_units'][::-1]
+
+
+    parameter_list['kaux_units_real'] = []
+    for i in range(parameter_list['kaux_width_real']):
+        parameter_list['kaux_units_real'].append(trial.suggest_int('kr_layer_' + str(i), 70, 200))
+    parameter_list['kaux_units_real'].append(1)
+
+    parameter_list['kaux_units_complex'] = []
+    for i in range(parameter_list['kaux_width_complex']):
+        parameter_list['kaux_units_complex'].append(trial.suggest_int('kc_layer_' + str(i), 70, 200))
+    parameter_list['kaux_units_complex'].append(2)
+
+    if flag == 'train':
+        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + str(parameter_list['en_width']) + str(parameter_list['kaux_width_real']) + str(parameter_list['kaux_width_complex']) + '_' + '_'.join(map(str, parameter_list['en_units'])) + '_' + '_'.join(map(str, parameter_list['kaux_units_complex']))
+        parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
+        if not os.path.exists(parameter_list['checkpoint_dir']):
+            os.makedirs(parameter_list['log_dir'])
+
+    encoder = net.encoder(parameter_list = parameter_list)
+    decoder = net.decoder(parameter_list = parameter_list)
+    kaux_real = net.kaux_real(parameter_list)
+    kaux_complex = net.kaux_complex(parameter_list)
+
+    return parameter_list, encoder, decoder, kaux_real, kaux_complex 
+>>>>>>> First commit for optuna related stuff.
