@@ -66,8 +66,8 @@ parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir']
 
 #Getting the default parameter_list
 #Settings related to dataset creation
-parameter_list['Batch_size'] = 1024*4                      #Batch size
-parameter_list['Batch_size_val'] = 1024*4                      #Batch size
+parameter_list['Batch_size'] = 1024 * tf.config.experimental.list_physical_devices('GPU')                      #Batch size
+parameter_list['Batch_size_val'] = 1024 * tf.config.experimental.list_physical_devices('GPU')                     #Batch size
 parameter_list['Buffer_size'] = 50000                    #Buffer size for shuffle
 
 #Encoder layer
@@ -100,9 +100,8 @@ parameter_list['l_decay_param'] = 0.98
 
 #Settings related to trainig
 parameter_list['learning_rate'] = 0.001                 #Initial learning rate
-parameter_list['lr_decay_rate'] = 0.96
+parameter_list['lr_decay_rate'] = 0.10
 parameter_list['learning_rate'] = parameter_list['learning_rate'] * parameter_list['Batch_size'] / 256.0
-parameter_list['lr_decay_steps'] = 500000                 #No of steps for learning rate decay scheduling
 parameter_list['dropout'] = 0.0                         #Dropout for the layers
 parameter_list['early_stop_patience'] =21900               #Patience in num of epochs for early stopping
 parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
@@ -120,6 +119,7 @@ parameter_list['log_freq'] = 1                          #Logging frequence for c
 parameter_list['summery_freq'] = 1                      #Logging frequence for summeries
 parameter_list['log_dir'] = '/summeries'               #Log directory for tensorboard summary
 parameter_list['epochs'] = args.epoch                         #Number of epochs
+parameter_list['lr_decay_steps'] = parameter_list['epochs'] * parameter_list['num_training_points'] / parameter_list['Batch_size']                  #No of steps for learning rate decay scheduling
 
 flag = args.t
 multi_flag = args.gpu

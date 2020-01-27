@@ -300,7 +300,7 @@ class loop_net(tf.keras.Model):
                 
                 k_jordan_input_local = tf.concat([k_omegas_local, k_embeddings_cur_local], axis = 2)
                 k_jordan_output_local = self.koopman_jordan(k_jordan_input_local)
-                k_omegas_local = k_jordan_output_local
+                k_embeddings_cur_local = k_jordan_output_local
             
             next_state_space_mth_local = self.decoder(k_jordan_output_local)
             next_state_space_mth = next_state_space_mth.write(i, next_state_space_mth_local)

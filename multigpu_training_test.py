@@ -227,6 +227,7 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                     tf.summary.scalar('Loss RNN', loss, step= global_epoch)
                     tf.summary.scalar('Reconstruction_loss', t_reconst, step= global_epoch)
                     tf.summary.scalar('Linearization_loss', t_lin, step= global_epoch)
+                    tf.summary.scalar('Learning rate', optimizer._decayed_lr(var_dtype=tf.float32), step= global_epoch)
                     if cal_mth_loss_flag:
                         tf.summary.scalar('Mth prediction loss', t_mth, step = global_epoch)
 
@@ -260,23 +261,24 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                     print('Breaking out as the validation loss is nan')
                     break
 
-                if (global_epoch > 19):
-                    if not (epoch % parameter_list['early_stop_patience']):
-                        if  not (val_min):
-                            val_min = v_metric
-                        else:
-                            if val_min > v_metric:
-                                val_min = v_metric
-                            else:
-                                print('Breaking loop  as validation accuracy not improving')
-                                print("loss {}".format(loss.numpy()))
-                                break
+                #if (global_epoch > 19):
+                #    if not (epoch % parameter_list['early_stop_patience']):
+                #        if  not (val_min):
+                #            val_min = v_metric
+                #        else:
+                #            if val_min > v_metric:
+                #                val_min = v_metric
+                #            else:
+                #                print('Breaking loop  as validation accuracy not improving')
+                #                print("loss {}".format(loss.numpy()))
+                #                break
 
                 print('Time for epoch (in seconds): %s' %((time.time() - start_time)))
 
     print('\n Total Epoch time (in minutes): {}'.format((time.time()-timer_tot)/60))
     parameter_list['global_epoch'] = global_epoch
     parameter_list['val_min'] = val_loss_min
+    print('\nNumber of iterations for optimizer: {}'.format(optimizer.iterations.numpy()))
     return parameter_list
 
 def traintest(parameter_list):
@@ -309,8 +311,7 @@ def traintest(parameter_list):
 
     #Creating checkpoint instance
     save_directory = parameter_list['checkpoint_dir']
-    manager = tf.train.CheckpointManager(checkpoint, directory= save_directory,
-                                        max_to_keep= parameter_list['max_checkpoint_keep'])
+    manager = tf.train.CheckpointManager(checkpoint, directory= save_directory, max_to_keep= parameter_list['max_checkpoint_keep'])
     checkpoint.restore(manager.latest_checkpoint).expect_partial()
 
     #Checking if previous checkpoint exists
@@ -325,5 +326,3 @@ def traintest(parameter_list):
 
         print('Initializing from scratch for Experiment... \n')
         return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
-
-    print(learning_rate)
