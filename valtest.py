@@ -38,6 +38,8 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
     prediction_list_global = []
     k_embeddings_list_global = []
     eigen_value_global = []
+    r = [tf.zeros((1, parameter_list['kaux_units_real']), dtype=tf.float32) for s in range(parameter_list['kaux_width_real'] + 1)]
+    c = [tf.zeros((1, parameter_list['kaux_units_complex']), dtype=tf.float32) for s in range(parameter_list['kaux_width_complex'] + 1)]
 
     for j in range(x_t_true.shape[0]):
         prediction_list_local = []
@@ -48,13 +50,14 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
         
         #Createing first encoded state of all the trajectories
         k_embeddings_cur = encoder(input_value)
+        initial_stat = [[r for _ in range(parameter_list['num_real'])], [c for _ in range(parameter_list['num_complex_pairs'])]]
 
         #Appending embedding
         k_embeddings_list_local.append(k_embeddings_cur.numpy()[0,0,:])
         for i in range(steps-1):
 
             #Finding the associated eigenvalues
-            k_omegas = k_aux(k_embeddings_cur)
+            k_omegas, stat = k_aux(k_embeddings_cur, initial_stat)
             
             #Preparing input for the Koopam Jordan
             k_jordan_input = tf.concat([k_omegas, k_embeddings_cur], axis= 2)
@@ -70,6 +73,7 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
 
             #Reseting the evolved embedding to current step embedding
             k_embeddings_cur = koopman_evolved
+            stat = initial_stat
 
             #Appending the eigenvalues and prediction 
             eigen_value_local.append(k_omegas.numpy()[0,0,:])

@@ -336,19 +336,17 @@ def traintest(trial, parameter_list, flag):
         print("Restored from {}".format(manager.latest_checkpoint))
 
         print('Starting training of Experiment... \n')
-        return train(trial, parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        to_return = train(trial, parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        print('\nMinimum val_loss calculated: {}\n'.format(to_return))
+        return to_return
 
     else:
         print("No checkpoint exists.")
 
         print('Initializing from scratch for Experiment... \n')
-<<<<<<< HEAD
-        return train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
-<<<<<<< HEAD
-=======
-=======
-        return train(trial, parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
->>>>>>> Added pruners
+        to_return = train(trial, parameter_list, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        print('\nMinimum val_loss calculated: {}\n'.format(to_return))
+        return to_return
 
 def get_model(trial, parameter_list, flag):
 
@@ -388,4 +386,3 @@ def get_model(trial, parameter_list, flag):
     kaux_complex = net.kaux_complex(parameter_list)
 
     return parameter_list, encoder, decoder, kaux_real, kaux_complex 
->>>>>>> First commit for optuna related stuff.

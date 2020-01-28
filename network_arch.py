@@ -77,14 +77,13 @@ class kaux_real(tf.keras.Model):
         self.units_r = parameter_list['kaux_units_real']
         self.width_r = parameter_list['kaux_width_real']
         self.activation = parameter_list['kp_activation']
-        self.statet = parameter_list['stateful']
 
     def build(self, input_shape):
         
         self.states = []
         self.koopman_layer_real = []
         for i in range(self.width_r + 1):
-            self.koopman_layer_real.append(tf.keras.layers.GRU(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet, return_state = True))
+            self.koopman_layer_real.append(tf.keras.layers.GRU(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, return_state = True))
 
     def call(self, inputs, states):
         
@@ -102,14 +101,13 @@ class kaux_complex(tf.keras.Model):
         self.units_c = parameter_list['kaux_units_complex']
         self.width_c = parameter_list['kaux_width_complex'] 
         self.activation = parameter_list['kp_activation']
-        self.statet = parameter_list['stateful']
     
     def build(self, input_shape):
 
         self.states = []
         self.koopman_layer_complex = []
         for j in range(self.width_c + 1):
-            self.koopman_layer_complex.append(tf.keras.layers.GRU(units = self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, stateful = self.statet, return_state = True))
+            self.koopman_layer_complex.append(tf.keras.layers.GRU(units = self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, return_state = True))
 
     def call(self, inputs, states):
         inputs = tf.reduce_mean(tf.square(inputs), axis = 2, keepdims = True)
@@ -138,10 +136,10 @@ class koopman_aux_net(tf.keras.Model):
         
         [r_state_s, c_state_s] = states
 
-        # print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
+        #print(f'Calling Koopan_aux_net with input shape {inputs.shape}')
         input_real, input_complex = tf.split(inputs, [self.output_units_real, self.output_units_complex], axis= 2)
-        # print('Shape of the real input: {}'.format(input_real.shape))
-        # print('Shape of the complex input: {}'.format(input_complex.shape))
+        #print('Shape of the real input: {}'.format(input_real.shape))
+        #print('Shape of the complex input: {}'.format(input_complex.shape))
 
         try:
             real = []
