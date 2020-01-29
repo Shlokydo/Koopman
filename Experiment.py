@@ -41,7 +41,10 @@ parser.add_argument("--real_ef", default=1, type=int, help="Number of real eigen
 parser.add_argument("--complex_ef", default=1, type=int, help="Number of complex eigenfunctions")
 
 parser.add_argument("--weighted_loss", "--wl", default=0, type=int, help="Weighted loss function as in Otto et.al")
+parser.add_argument("--lr_decayrate", "--lrdr", default=0.1, type=float, help="Learning rate decay rate")
 
+parser.add_argument("--num_m_no_cal", "--m_no", default=40, type=int, help="Num of epoch without mth calculation")
+parser.add_argument("--num_m_cal", "--m_cal", default=10, type=int, help="Num of epoch with mth calculation")
 args = parser.parse_args()
 
 parameter_list = {}
@@ -66,8 +69,8 @@ parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir']
 
 #Getting the default parameter_list
 #Settings related to dataset creation
-parameter_list['Batch_size'] = 1024 * tf.config.experimental.list_physical_devices('GPU')                      #Batch size
-parameter_list['Batch_size_val'] = 1024 * tf.config.experimental.list_physical_devices('GPU')                     #Batch size
+parameter_list['Batch_size'] = int(1024 * len(tf.config.experimental.list_physical_devices('GPU')))                      #Batch size
+parameter_list['Batch_size_val'] = int(1024 * len(tf.config.experimental.list_physical_devices('GPU')))                    #Batch size
 parameter_list['Buffer_size'] = 50000                    #Buffer size for shuffle
 
 #Encoder layer
@@ -100,13 +103,13 @@ parameter_list['l_decay_param'] = 0.98
 
 #Settings related to trainig
 parameter_list['learning_rate'] = 0.001                 #Initial learning rate
-parameter_list['lr_decay_rate'] = 0.10
+parameter_list['lr_decay_rate'] = args.lr_decayrate
 parameter_list['learning_rate'] = parameter_list['learning_rate'] * parameter_list['Batch_size'] / 256.0
 parameter_list['dropout'] = 0.0                         #Dropout for the layers
 parameter_list['early_stop_patience'] =21900               #Patience in num of epochs for early stopping
 parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
-parameter_list['mth_cal_patience'] = 10                  #number of epochs for which mth loss is calculated
-parameter_list['mth_no_cal_epochs'] = 50                #Number of epochs for which mth loss is not calculated
+parameter_list['mth_cal_patience'] = args.num_m_cal                  #number of epochs for which mth loss is calculated
+parameter_list['mth_no_cal_epochs'] = args.num_m_no_cal                #Number of epochs for which mth loss is not calculated
 parameter_list['weighted'] = args.weighted_loss
 parameter_list['reconst_hp'] = 0.001
 parameter_list['global_epoch'] = 0

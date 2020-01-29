@@ -102,7 +102,6 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
             
             # Open a GradientTape to record the operations run
             # during the forward pass, which enables autodifferentiation.
-            print('Starting training')
             (t_current, t_next_actual), mth_flag = inputs
 
             with tf.GradientTape() as tape:
@@ -120,9 +119,13 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 with tf.GradientTape() as tape:     
                     t_mth_predictions = loop_net(t_current)
                     loss_mth = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1))
-
+                
+                loop_net.layers[0].trainable=False
+                loop_net.layers[3].trainable=False
                 gradients = tape.gradient([loss_mth], loop_net.trainable_weights)
                 optimizer.apply_gradients(zip(gradients, loop_net.trainable_weights))           
+                loop_net.layers[0].trainable=True
+                loop_net.layers[3].trainable=True
             else:
                 loss_mth = tf.constant(0, dtype=tf.float32)
 
@@ -227,7 +230,7 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                     tf.summary.scalar('Loss RNN', loss, step= global_epoch)
                     tf.summary.scalar('Reconstruction_loss', t_reconst, step= global_epoch)
                     tf.summary.scalar('Linearization_loss', t_lin, step= global_epoch)
-                    tf.summary.scalar('Learning rate', optimizer._decayed_lr(var_dtype=tf.float32), step= global_epoch)
+                    tf.summary.scalar('Learning rate', optimizer._decayed_lr(var_dtype=tf.float32).numpy(), step= global_epoch)
                     if cal_mth_loss_flag:
                         tf.summary.scalar('Mth prediction loss', t_mth, step = global_epoch)
 
@@ -299,7 +302,7 @@ def traintest(parameter_list):
         loop_net = net.loop_net(parameter_list, encoder, decoder, koopman_aux_net, koopman_jordan)
 
         #Defining Model compiling parameters
-        learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = True)
+        learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = False)
         learning_rate = learningrate_schedule
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
