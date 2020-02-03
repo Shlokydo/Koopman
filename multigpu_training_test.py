@@ -4,6 +4,7 @@ import time
 import numpy as np
 import sys
 import os
+import random
 
 import network_arch as net
 import Helperfunction as helpfunc
@@ -109,16 +110,17 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
 
                 #Calculating relative loss
                 loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, weighted = parameter_list['weighted'])
-                reconstruction_loss = compute_loss(t_current, t_reconstruction, weighted = parameter_list['weighted'])
-                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted']) 
+                reconstruction_loss = compute_loss(t_current, t_reconstruction, weighted = 0)
+                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = 0) 
 
             gradients = tape.gradient([loss_next_prediction, linearization_loss, reconstruction_loss], preliminary_net.trainable_variables)
             optimizer.apply_gradients(zip(gradients, preliminary_net.trainable_weights))           
 
             if mth_flag:
+                m = random.randint(0, 9)
                 with tf.GradientTape() as tape:     
-                    t_mth_predictions = loop_net(t_current)
-                    loss_mth = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1))
+                    t_mth_predictions = loop_net(t_current, m)
+                    loss_mth = loss_func(t_mth_predictions, t_next_actual[:, m:parameter_list['mth_step'] + m, :]) / (parameter_list['Batch_size'] * (parameter_list['mth_step']))
                 
                 loop_net.layers[0].trainable=False
                 loop_net.layers[3].trainable=False
@@ -145,8 +147,9 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
             linearization_loss = compute_loss(t_embedding, t_jordan, 0)
 
             if mth_flag:
-                t_mth_predictions = loop_net(t_current)
-                loss_mth = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1))
+                m = random.randint(0, 9)
+                t_mth_predictions = loop_net(t_current, m)
+                loss_mth = loss_func(t_mth_predictions, t_next_actual[:, m:parameter_list['mth_step'] + m, :]) / (parameter_list['Batch_size'] * (parameter_list['mth_step']))
             else:
                 loss_mth = tf.constant(0, dtype=tf.float32)
 
@@ -263,18 +266,6 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 if math.isnan(v_metric):
                     print('Breaking out as the validation loss is nan')
                     break
-
-                #if (global_epoch > 19):
-                #    if not (epoch % parameter_list['early_stop_patience']):
-                #        if  not (val_min):
-                #            val_min = v_metric
-                #        else:
-                #            if val_min > v_metric:
-                #                val_min = v_metric
-                #            else:
-                #                print('Breaking loop  as validation accuracy not improving')
-                #                print("loss {}".format(loss.numpy()))
-                #                break
 
                 print('Time for epoch (in seconds): %s' %((time.time() - start_time)))
 

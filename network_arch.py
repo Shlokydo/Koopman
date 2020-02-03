@@ -276,32 +276,28 @@ class loop_net(tf.keras.Model):
         self.ncomplex = parameter_list['num_complex_pairs']
         
         self.mth_step = parameter_list['mth_step']
-    
-    def build(self, input_shape):
-        self.iterations = tf.constant(input_shape[1] - self.mth_step)
 
-    def call(self, inputs):
-        inputs_for_mth = inputs[:,:self.iterations,:] 
-        next_state_space_mth = tf.TensorArray(tf.float32, size = self.iterations, element_shape = (inputs.shape[0], 1, inputs.shape[2]))
+    def call(self, inputs, m = 0):
+        inputs_for_mth = tf.expand_dims(inputs[:,m,:], axis = 1) 
+        next_state_space_mth = tf.TensorArray(tf.float32, size = self.mth_step, element_shape = (inputs.shape[0], 1, inputs.shape[2]))
         k_embeddings_cur = self.encoder(inputs_for_mth)
 
         r = [tf.zeros((inputs.shape[0], self.units_r[s]), dtype=tf.float32) for s in range(self.width_r + 1)]
         c = [tf.zeros((inputs.shape[0], self.units_c[s]), dtype=tf.float32) for s in range(self.width_c + 1)]
 
-        for i in tf.range(self.iterations):
-            initial_stat = [[r for _ in range(self.nreal)], [c for _ in range(self.ncomplex)]]
-            k_embeddings_cur_local = tf.expand_dims(k_embeddings_cur[:,i,:], axis = 1)
-            k_jordan_output_local = tf.zeros_like((k_embeddings_cur_local), tf.float32)
-            next_state_space_mth_local = tf.zeros((inputs.shape[0], 1, inputs.shape[2]), tf.float32)
+        initial_stat = [[r for _ in range(self.nreal)], [c for _ in range(self.ncomplex)]]
+        k_embeddings_cur_local = k_embeddings_cur
+        k_jordan_output_local = tf.zeros_like((k_embeddings_cur_local), tf.float32)
+        next_state_space_mth_local = tf.zeros((inputs.shape[0], 1, inputs.shape[2]), tf.float32)
 
-            for j in tf.range(self.mth_step):
-                k_omegas_local, states = self.koopman_aux_net(k_embeddings_cur_local, initial_stat)
-                initial_stat = states
-                
-                k_jordan_input_local = tf.concat([k_omegas_local, k_embeddings_cur_local], axis = 2)
-                k_jordan_output_local = self.koopman_jordan(k_jordan_input_local)
-                k_embeddings_cur_local = k_jordan_output_local
+        for j in tf.range(self.mth_step):
+            k_omegas_local, states = self.koopman_aux_net(k_embeddings_cur_local, initial_stat)
+            initial_stat = states
             
+            k_jordan_input_local = tf.concat([k_omegas_local, k_embeddings_cur_local], axis = 2)
+            k_jordan_output_local = self.koopman_jordan(k_jordan_input_local)
+            k_embeddings_cur_local = k_jordan_output_local
+        
             next_state_space_mth_local = self.decoder(k_jordan_output_local)
             next_state_space_mth = next_state_space_mth.write(i, next_state_space_mth_local)
 
