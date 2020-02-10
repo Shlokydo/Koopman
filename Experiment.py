@@ -9,6 +9,7 @@ import pickle
 import shutil
 import argparse
 import time
+import math
 
 import multigpu_training_test as multi_train
 import Helperfunction as helpfunc
@@ -104,12 +105,13 @@ parameter_list['l_decay_param'] = 0.98
 #Settings related to trainig
 parameter_list['learning_rate'] = 0.001                 #Initial learning rate
 parameter_list['lr_decay_rate'] = args.lr_decayrate
-parameter_list['learning_rate'] = parameter_list['learning_rate'] * parameter_list['Batch_size'] / 256.0
+parameter_list['learning_rate'] = parameter_list['learning_rate'] * parameter_list['Batch_size'] / 128.0
 parameter_list['dropout'] = 0.0                         #Dropout for the layers
 parameter_list['early_stop_patience'] =21900               #Patience in num of epochs for early stopping
 parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
 parameter_list['mth_cal_patience'] = args.num_m_cal                  #number of epochs for which mth loss is calculated
 parameter_list['mth_no_cal_epochs'] = args.num_m_no_cal                #Number of epochs for which mth loss is not calculated
+parameter_list['only_RNN'] = 1500
 parameter_list['weighted'] = args.weighted_loss
 parameter_list['reconst_hp'] = 0.001
 parameter_list['global_epoch'] = 0
@@ -122,7 +124,8 @@ parameter_list['log_freq'] = 1                          #Logging frequence for c
 parameter_list['summery_freq'] = 1                      #Logging frequence for summeries
 parameter_list['log_dir'] = '/summeries'               #Log directory for tensorboard summary
 parameter_list['epochs'] = args.epoch                         #Number of epochs
-parameter_list['lr_decay_steps'] = parameter_list['epochs'] * parameter_list['num_training_points'] / parameter_list['Batch_size']                  #No of steps for learning rate decay scheduling
+#parameter_list['lr_decay_steps'] = parameter_list['epochs'] * parameter_list['num_training_points'] / parameter_list['Batch_size']                  #No of steps for learning rate decay scheduling
+parameter_list['lr_decay_steps'] = int(parameter_list['epochs'] * math.log(parameter_list['lr_decay_rate']) / math.log(1.9/4))                  #No of steps for learning rate decay scheduling
 
 flag = args.t
 multi_flag = args.gpu

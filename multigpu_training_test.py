@@ -108,9 +108,10 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
                 #Calculating relative loss
-                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, weighted = parameter_list['weighted'])
-                reconstruction_loss = compute_loss(t_current, t_reconstruction, weighted = parameter_list['weighted'])
-                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted']) 
+                loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, weighted = 0) * 0.001
+                reconstruction_loss = compute_loss(t_current, t_reconstruction, weighted = 0) * 0.001
+                linearization_loss = compute_loss(t_embedding, t_jordan, weighted = 0) / parameter_list['num_timesteps'] 
+                #linearization_loss = compute_loss(t_embedding, t_jordan, weighted = parameter_list['weighted'])  
 
             gradients = tape.gradient([loss_next_prediction, linearization_loss, reconstruction_loss], preliminary_net.trainable_variables)
             optimizer.apply_gradients(zip(gradients, preliminary_net.trainable_weights))           
@@ -118,7 +119,7 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
             if mth_flag:
                 with tf.GradientTape() as tape:     
                     t_mth_predictions = loop_net(t_current)
-                    loss_mth = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1))
+                    loss_mth = loss_func(t_mth_predictions, t_next_actual[:, parameter_list['mth_step']:,:]) / (parameter_list['Batch_size'] * (parameter_list['num_timesteps'] - parameter_list['mth_step'] - 1)) * 0.005
                 
                 loop_net.layers[0].trainable=False
                 loop_net.layers[3].trainable=False
@@ -140,9 +141,9 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
             t_next_predicted, t_reconstruction, t_embedding, t_jordan = preliminary_net(t_current)
 
             #Calculating relative loss
-            loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, 0)
-            reconstruction_loss = compute_loss(t_current, t_reconstruction, 0)
-            linearization_loss = compute_loss(t_embedding, t_jordan, 0)
+            loss_next_prediction = compute_loss(t_next_actual, t_next_predicted, 0) * 0.001
+            reconstruction_loss = compute_loss(t_current, t_reconstruction, 0) * 0.001
+            linearization_loss = compute_loss(t_embedding, t_jordan, 0) / parameter_list['num_timesteps'] 
 
             if mth_flag:
                 t_mth_predictions = loop_net(t_current)
@@ -201,15 +202,16 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                 start_time = time.time()
                 print('\nStart of epoch {}'.format(global_epoch))
 
-                if not((global_epoch) % mth_loss_cal_mani):
-                    if not(cal_mth_loss_flag):
-                        print("\n Starting calculation of mth prediction loss \n")
-                        cal_mth_loss_flag = True
-                        mth_loss_cal_mani = parameter_list['mth_cal_patience']
-                    else:
-                        cal_mth_loss_flag = False
-                        mth_loss_cal_mani = parameter_list['mth_no_cal_epochs']
-                        print("Stopping mth calculation loss")
+                if (epoch > parameter_list['only_RNN']):
+                    if not((global_epoch) % mth_loss_cal_mani):
+                        if not(cal_mth_loss_flag):
+                            print("\n Starting calculation of mth prediction loss \n")
+                            cal_mth_loss_flag = True
+                            mth_loss_cal_mani = parameter_list['mth_cal_patience']
+                        else:
+                            cal_mth_loss_flag = False
+                            mth_loss_cal_mani = parameter_list['mth_no_cal_epochs']
+                            print("Stopping mth calculation loss")
 
                 # Iterate over the batches of the dataset.
                 for step, inp in enumerate(dataset):
@@ -252,13 +254,14 @@ def train(parameter_list, preliminary_net, loop_net, checkpoint, manager, summar
                     if cal_mth_loss_flag:
                         tf.summary.scalar('V_Mth prediction loss', v_mth, step = global_epoch)
 
-                if val_loss_min > v_loss:
-                    val_loss_min = v_loss
-                    checkpoint.epoch.assign_add(1)
-                    if  not (int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint']):
-                        save_path = manager.save()
-                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
-                        print("loss {}".format(loss.numpy()))
+                if (global_epoch > parameter_list['only_RNN']):
+                    if val_loss_min > v_loss:
+                        val_loss_min = v_loss
+                        checkpoint.epoch.assign_add(1)
+                        if  not (int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint']):
+                            save_path = manager.save()
+                            print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
+                            print("loss {}".format(loss.numpy()))
 
                 if math.isnan(v_metric):
                     print('Breaking out as the validation loss is nan')
@@ -303,7 +306,8 @@ def traintest(parameter_list):
 
         #Defining Model compiling parameters
         learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'], decay_steps = parameter_list['lr_decay_steps'], decay_rate = parameter_list['lr_decay_rate'], staircase = False)
-        learning_rate = learningrate_schedule
+        #learning_rate = learningrate_schedule
+        learning_rate = parameter_list['learning_rate']
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         #Defining the checkpoint instance
