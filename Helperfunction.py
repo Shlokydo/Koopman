@@ -87,9 +87,9 @@ def write_pickle(dicty, filename):
 
 def read_pickle(filename):
     pickle_in = open(filename, "rb")
-    parameter_list = pickle.load(pickle_in)
+    pl = pickle.load(pickle_in)
     pickle_in.close()
-    return parameter_list
+    return pl
 
 def input_generator(input_value):
     input_value = np.asarray(input_value, dtype= np.float32)

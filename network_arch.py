@@ -4,12 +4,12 @@ import tensorflow as tf
 #Code for encoder layer
 class encoder(tf.keras.Model):
 
-    def __init__(self, parameter_list, name= 'ENCODER'):
+    def __init__(self, pl, name= 'ENCODER'):
         super(encoder, self).__init__()
-        self.units = parameter_list['en_units']
-        self.width = parameter_list['en_width']
-        self.initializer = parameter_list['en_initializer']
-        self.output_units = parameter_list['num_evals']
+        self.units = pl['en_units']
+        self.width = pl['en_width']
+        self.initializer = pl['en_initializer']
+        self.output_units = pl['num_evals']
         self.encoder_layer = []
 
     def build(self, input_shape):
@@ -38,12 +38,12 @@ class encoder(tf.keras.Model):
 #Code for decoder layer
 class decoder(tf.keras.Model):
 
-    def __init__(self, parameter_list, name= 'DECODER'):
+    def __init__(self, pl, name= 'DECODER'):
         super(decoder, self).__init__()
-        self.units = parameter_list['de_units']
-        self.width = parameter_list['de_width']
-        self.initializer = parameter_list['de_initializer']
-        self.output_units = parameter_list['de_output_units']
+        self.units = pl['de_units']
+        self.width = pl['de_width']
+        self.initializer = pl['de_initializer']
+        self.output_units = pl['de_output_units']
         self.decoder_layer = []
 
     def build(self, input_shape):
@@ -71,12 +71,12 @@ class decoder(tf.keras.Model):
 
 class kaux_real(tf.keras.Model):
 
-    def __init__(self, parameter_list, name='Koopman_Aux_real'):
+    def __init__(self, pl, name='Koopman_Aux_real'):
         super(kaux_real, self).__init__()
-        self.nreal = parameter_list['num_real']
-        self.units_r = parameter_list['kaux_units_real']
-        self.width_r = parameter_list['kaux_width_real']
-        self.activation = parameter_list['kp_activation']
+        self.nreal = pl['num_real']
+        self.units_r = pl['kaux_units_real']
+        self.width_r = pl['kaux_width_real']
+        self.activation = pl['kp_activation']
 
     def build(self, input_shape):
         
@@ -95,12 +95,12 @@ class kaux_real(tf.keras.Model):
 
 class kaux_complex(tf.keras.Model):
 
-    def __init__(self, parameter_list, name='Koopman_Aux_complex'):
+    def __init__(self, pl, name='Koopman_Aux_complex'):
         super(kaux_complex, self).__init__()
-        self.ncomplex = parameter_list['num_complex_pairs']
-        self.units_c = parameter_list['kaux_units_complex']
-        self.width_c = parameter_list['kaux_width_complex'] 
-        self.activation = parameter_list['kp_activation']
+        self.ncomplex = pl['num_complex_pairs']
+        self.units_c = pl['kaux_units_complex']
+        self.width_c = pl['kaux_width_complex'] 
+        self.activation = pl['kp_activation']
     
     def build(self, input_shape):
 
@@ -120,16 +120,16 @@ class kaux_complex(tf.keras.Model):
 #Code for Koopman Operator Auxilary Network
 class koopman_aux_net(tf.keras.Model):
 
-    def __init__(self, kaux_real, kaux_complex, parameter_list, name='Koopman_Aux'):
+    def __init__(self, kaux_real, kaux_complex, pl, name='Koopman_Aux'):
         super(koopman_aux_net, self).__init__()
-        self.nreal = parameter_list['num_real']
-        self.ncomplex = parameter_list['num_complex_pairs']
+        self.nreal = pl['num_real']
+        self.ncomplex = pl['num_complex_pairs']
         if self.nreal:
             self.kaux_r = kaux_real
         if self.ncomplex:
             self.kaux_c = kaux_complex
-        self.output_units_complex = parameter_list['kaux_output_units_complex']
-        self.output_units_real = parameter_list['kaux_output_units_real']
+        self.output_units_complex = pl['kaux_output_units_complex']
+        self.output_units_real = pl['kaux_output_units_real']
 
     def call(self, inputs, states):
 
@@ -176,11 +176,11 @@ class koopman_aux_net(tf.keras.Model):
 #eigenvalues and Koopman embddings (y) from the encoder layer 
 class koopman_jordan(tf.keras.Model):
 
-    def __init__(self, parameter_list):
+    def __init__(self, pl):
         super(koopman_jordan, self).__init__()
-        self.omegas_real = parameter_list['num_real']
-        self.omegas_complex = parameter_list['num_complex_pairs'] * 2
-        self.delta_t = parameter_list['delta_t']
+        self.omegas_real = pl['num_real']
+        self.omegas_complex = pl['num_complex_pairs'] * 2
+        self.delta_t = pl['delta_t']
 
     def call(self, inputs):
 
@@ -225,19 +225,19 @@ class koopman_jordan(tf.keras.Model):
 
 class preliminary_net(tf.keras.Model):
 
-    def __init__(self, parameter_list, encoder, decoder, k_net, k_jor, **kwargs):
+    def __init__(self, pl, encoder, decoder, k_net, k_jor, **kwargs):
         super(preliminary_net, self).__init__()
         self.encoder = encoder
         self.koopman_aux_net = k_net
         self.koopman_jordan = k_jor
         self.decoder = decoder
 
-        self.width_r = parameter_list['kaux_width_real'] 
-        self.width_c = parameter_list['kaux_width_complex'] 
-        self.units_r = parameter_list['kaux_units_real']        
-        self.units_c = parameter_list['kaux_units_complex'] 
-        self.nreal = parameter_list['num_real']
-        self.ncomplex = parameter_list['num_complex_pairs']
+        self.width_r = pl['kaux_width_real'] 
+        self.width_c = pl['kaux_width_complex'] 
+        self.units_r = pl['kaux_units_real']        
+        self.units_c = pl['kaux_units_complex'] 
+        self.nreal = pl['num_real']
+        self.ncomplex = pl['num_complex_pairs']
 
     def call(self, inputs):
 
@@ -266,21 +266,21 @@ class preliminary_net(tf.keras.Model):
 
 class loop_net(tf.keras.Model):
 
-    def __init__(self, parameter_list, encoder, decoder, k_net, k_jor, **kwargs):
+    def __init__(self, pl, encoder, decoder, k_net, k_jor, **kwargs):
         super(loop_net, self).__init__()
         self.encoder = encoder
         self.koopman_aux_net = k_net
         self.koopman_jordan = k_jor
         self.decoder = decoder
 
-        self.width_r = parameter_list['kaux_width_real'] 
-        self.width_c = parameter_list['kaux_width_complex']
-        self.units_r = parameter_list['kaux_units_real']        
-        self.units_c = parameter_list['kaux_units_complex'] 
-        self.nreal = parameter_list['num_real']
-        self.ncomplex = parameter_list['num_complex_pairs']
+        self.width_r = pl['kaux_width_real'] 
+        self.width_c = pl['kaux_width_complex']
+        self.units_r = pl['kaux_units_real']        
+        self.units_c = pl['kaux_units_complex'] 
+        self.nreal = pl['num_real']
+        self.ncomplex = pl['num_complex_pairs']
         
-        self.mth_step = parameter_list['mth_step']
+        self.mth_step = pl['mth_step']
     
     def build(self, input_shape):
         self.iterations = tf.constant(input_shape[1] - self.mth_step)

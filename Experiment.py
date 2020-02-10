@@ -20,9 +20,8 @@ import valtest as testing
 
 parser = argparse.ArgumentParser(description='Experiment controller')
 parser.add_argument("--t", default='train', type=str, help="Training or testing flag setter", choices=["train", "best", "test"])
-parser.add_argument("--gpu", default=1, type=int, help="To enable/disable multi-gpu training. Default, true.", choices=[0, 1])
 parser.add_argument("--epoch", default=200, type=int, help="Set the number of epochs.")
-parser.add_argument("--experiment", "--exp", default="d", help="Name of the experiment(s)", nargs='*')
+parser.add_argument("--experiment", "--exp", default="d", help="Name of the experiment(s)")
 
 parser.add_argument("--key", default="nl_pendulum", help="Key for the dataset to be used from the HDF5 file")
 parser.add_argument("--dataset", default="Dataset", help="Name of the .h5 dataset to be used for training")
@@ -49,198 +48,187 @@ parser.add_argument("--num_m_no_cal", "--m_no", default=40, type=int, help="Num 
 parser.add_argument("--num_m_cal", "--m_cal", default=10, type=int, help="Num of epoch with mth calculation")
 args = parser.parse_args()
 
+study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///example.db', load_if_exists=True, pruner=optuna.pruners.PercentilePruner(80.0))
+num_gpu = len(tf.config.experimental.list_physical_devices('GPU'))
+
 def get_params(trial):
 
-    parameter_list = {}
+    pl = {}
 
     #Basic setting for all the experiments
-    parameter_list['key'] = args.key
-    parameter_list['key_test'] = args.key + '_test'
-    parameter_list['num_timesteps'] = 51   #Next version, need to read it from the dataset
-    parameter_list['num_training_points'] = args.num_trainpoints
-    parameter_list['num_validation_points'] = args.num_valpoints
-    parameter_list['input_scaling'] = 1
-    parameter_list['inputs'] = 2
-    parameter_list['dataset'] = args.dataset + '.h5'
+    pl['key'] = args.key
+    pl['key_test'] = args.key + '_test'
+    pl['num_timesteps'] = 51   #Next version, need to read it from the dataset
+    pl['num_training_points'] = args.num_trainpoints
+    pl['num_validation_points'] = args.num_valpoints
+    pl['input_scaling'] = 1
+    pl['inputs'] = 2
+    pl['dataset'] = args.dataset + '.h5'
+    pl['delta_t'] = args.delta_t
 
-    parameter_list['num_real'] = args.real_ef                          #Number of real Koopman eigenvalues
-    parameter_list['num_complex_pairs'] = args.complex_ef                 #Number of complex conjugate eigenvalues
-    parameter_list['num_evals'] = parameter_list['num_real'] + 2 * parameter_list['num_complex_pairs']
+    pl['num_real'] = args.real_ef                          #Number of real Koopman eigenvalues
+    pl['num_complex_pairs'] = args.complex_ef                 #Number of complex conjugate eigenvalues
+    pl['num_evals'] = pl['num_real'] + 2 * pl['num_complex_pairs']
 
-    parameter_list['experiments'] = args.experiment
-    parameter_list['checkpoint_expdir'] = './optuna_' + '{}'.format(args.key)
-    parameter_list['checkpoint_dir'] = parameter_list['checkpoint_expdir']
+    pl['checkpoint_expdir'] = './optuna_' + '{}'.format(args.key)
+    pl['checkpoint_dir'] = pl['checkpoint_expdir']
 
-    #Getting the default parameter_list
+    #Getting the default pl
     #Settings related to dataset creation
-    parameter_list['Batch_size'] = int(1024 * len(tf.config.experimental.list_physical_devices('GPU')))                      #Batch size
-    parameter_list['Batch_size_val'] = int(1024 * len(tf.config.experimental.list_physical_devices('GPU')))                    #Batch size
-    parameter_list['Buffer_size'] = 50000                    #Buffer size for shuffle
+    pl['Batch_size'] = int(1024 * num_gpu) if num_gpu else 1024                      #Batch size
+    pl['Batch_size_val'] = int(1024 * num_gpu) if num_gpu else 1024                     #Batch size
+
+    pl['Buffer_size'] = 50000                    #Buffer size for shuffle
 
     #Encoder layer
-    parameter_list['en_units_r'] = args.ende_units                         #Number of neurons in the encoder lstm layer
-    parameter_list['en_width_r'] = args.num_ende_layers                          #Number of lstm layers
-    parameter_list['en_activation'] = 'relu'                #All same as encoder till here
-    parameter_list['en_initializer'] = 'glorot_uniform'
+    pl['en_units_r'] = args.ende_units                         #Number of neurons in the encoder lstm layer
+    pl['en_width_r'] = args.num_ende_layers                          #Number of lstm layers
+    pl['en_activation'] = 'relu'                #All same as encoder till here
+    pl['en_initializer'] = 'glorot_uniform'
 
     #Koopman auxilary network
-    parameter_list['kaux_units_real_r'] = args.kaux_units_real                                        
-    parameter_list['kaux_width_real_r'] = args.num_kaux_layers_real
-    parameter_list['kaux_units_complex_r'] = args.kaux_units_complex 
-    parameter_list['kaux_width_complex_r'] = args.num_kaux_layers_complex                                                      #Number of dense layers
-    parameter_list['kaux_output_units_real'] = parameter_list['num_real']                 #Number of real outputs
-    parameter_list['kaux_output_units_complex'] = parameter_list['num_complex_pairs'] * 2 #Number of complex outputs
-    parameter_list['kp_initializer'] = 'glorot_uniform'     #Initializer of layers
-    parameter_list['kp_activation'] = 'tanh'                #Activation of layers
+    pl['kaux_units_real_r'] = args.kaux_units_real                                        
+    pl['kaux_width_real_r'] = args.num_kaux_layers_real
+    pl['kaux_units_complex_r'] = args.kaux_units_complex 
+    pl['kaux_width_complex_r'] = args.num_kaux_layers_complex                                                      #Number of dense layers
+    pl['kaux_output_units_real'] = pl['num_real']                 #Number of real outputs
+    pl['kaux_output_units_complex'] = pl['num_complex_pairs'] * 2 #Number of complex outputs
+    pl['kp_initializer'] = 'glorot_uniform'     #Initializer of layers
+    pl['kp_activation'] = 'tanh'                #Activation of layers
 
     #Decoder layer
-    parameter_list['de_initializer'] = 'glorot_uniform'
-    parameter_list['de_activation'] = 'relu'                #All same as encoder till here
-    parameter_list['de_output_units'] = 2                   #Number of final output units
+    pl['de_initializer'] = 'glorot_uniform'
+    pl['de_activation'] = 'relu'                #All same as encoder till here
+    pl['de_output_units'] = 2                   #Number of final output units
 
-    parameter_list['l_decay_param'] = 0.98
+    pl['l_decay_param'] = 0.98
 
     #Settings related to trainig
-    parameter_list['learning_rate'] = 0.001                 #Initial learning rate
-    parameter_list['lr_decay_rate'] = args.lr_decayrate
-    parameter_list['learning_rate'] = parameter_list['learning_rate'] * parameter_list['Batch_size'] / 128.0
-    parameter_list['dropout'] = 0.0                         #Dropout for the layers
-    parameter_list['early_stop_patience'] =21900               #Patience in num of epochs for early stopping
-    parameter_list['mth_step'] = 40                         #mth step for which prediction needs to be made
-    parameter_list['mth_cal_patience'] = args.num_m_cal                  #number of epochs for which mth loss is calculated
-    parameter_list['mth_no_cal_epochs'] = args.num_m_no_cal                #Number of epochs for which mth loss is not calculated
-    parameter_list['only_RNN'] = 1500
-    parameter_list['weighted'] = args.weighted_loss
-    parameter_list['reconst_hp'] = 0.001
-    parameter_list['global_epoch'] = 0
-    parameter_list['val_min'] = 100
+    pl['learning_rate'] = trial.suggest_uniform('l_rate', 0.5e-3, 5e-3)                 #Initial learning rate
+    pl['lr_decay_rate'] = args.lr_decayrate
+    pl['learning_rate'] = pl['learning_rate'] * pl['Batch_size'] / 128.0
+    pl['dropout'] = 0.0                         #Dropout for the layers
+    pl['early_stop_patience'] =21900               #Patience in num of epochs for early stopping
+    pl['mth_step'] = 40                         #mth step for which prediction needs to be made
+    pl['mth_cal_patience'] = args.num_m_cal                  #number of epochs for which mth loss is calculated
+    pl['mth_no_cal_epochs'] = args.num_m_no_cal                #Number of epochs for which mth loss is not calculated
+    pl['only_RNN'] = 1500
+    pl['weighted'] = args.weighted_loss
+    pl['reconst_hp'] = 0.001
+    pl['global_epoch'] = 0
+    pl['val_min'] = 100
 
     #Settings related to saving checkpointing and logging
-    parameter_list['max_checkpoint_keep'] = 4               #Max number of checkpoints to keep
-    parameter_list['num_epochs_checkpoint'] = 2            #Num of epochs after which to create a checkpoint
-    parameter_list['log_freq'] = 1                          #Logging frequence for console output
-    parameter_list['summery_freq'] = 1                      #Logging frequence for summeries
-    parameter_list['log_dir'] = '/summeries'               #Log directory for tensorboard summary
-    parameter_list['epochs'] = args.epoch                         #Number of epochs
-    #parameter_list['lr_decay_steps'] = parameter_list['epochs'] * parameter_list['num_training_points'] / parameter_list['Batch_size']                  #No of steps for learning rate decay scheduling
-    parameter_list['lr_decay_steps'] = int(parameter_list['epochs'] * math.log(parameter_list['lr_decay_rate']) / math.log(1.9/4))                  #No of steps for learning rate decay scheduling
+    pl['max_checkpoint_keep'] = 4               #Max number of checkpoints to keep
+    pl['num_epochs_checkpoint'] = 2            #Num of epochs after which to create a checkpoint
+    pl['log_freq'] = 1                          #Logging frequence for console output
+    pl['summery_freq'] = 1                      #Logging frequence for summeries
+    pl['log_dir'] = '/summeries'               #Log directory for tensorboard summary
+    pl['epochs'] = args.epoch                         #Number of epochs
+    pl['lr_decay_steps'] = int(pl['epochs'] * math.log(pl['lr_decay_rate']) / math.log(1.9/4))                  #No of steps for learning rate decay scheduling
 
-    flag = args.t
-    multi_flag = args.gpu
+    pl['checkpoint_dir'] = pl['checkpoint_dir'] + '/exp_' + args.experiment
+    pl['checkpoint_expdir'] = pl['checkpoint_dir']
+    pl['checkpoint_dir'] = pl['checkpoint_dir'] + '/checkpoints'
+    
+    pl['pickle_name'] = pl['checkpoint_expdir'] + '/optuna_params.pickle'
 
-    for i in parameter_list['experiments']:
+    try:
+        pl['learning_rate'] = pl['learning_rate'] / num_gpu
+    except:
+        pass
 
-        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/exp_' + str(i)
-        parameter_list['checkpoint_expdir'] = parameter_list['checkpoint_dir']
-        parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
+    if args.t == 'train':
+
+        if not os.path.exists(pl['checkpoint_expdir']):
+            print('\nWill make a experiment directory\n')
+
+        print('Multi GPU {}ing'.format(args.t))
+        pl['checkpoint_dir'] = pl['checkpoint_dir'] + '_optuna'
+
+    elif args.t == 'best':
         
-        study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///example.db', load_if_exists=True, pruner=optuna.pruners.PercentilePruner(25.0))
+        pl['checkpoint_dir'] = pl['checkpoint_dir'] + '_optbest'
+        cd_copy = pl['checkpoint_dir']
+        pl['log_dir'] = pl['checkpoint_dir'] + pl['log_dir']
 
-        parameter_list['pickle_name'] = parameter_list['checkpoint_expdir'] + '/optuna_params.pickle'
+        if not os.path.exists(pl['checkpoint_dir']):
+            os.makedirs(pl['checkpoint_dir'] + '/media')
+            os.makedirs(pl['log_dir'])
+            pl['checkpoint_dir'] = pl['checkpoint_dir'] + '/checkpoints'
+            os.makedirs(pl['checkpoint_dir'])
 
-        if flag == 'train':
+        print('Multi GPU {}ing'.format(args.t + ' param training'))
+        pl['delta_t'] = args.delta_t
 
-            if not os.path.exists(parameter_list['checkpoint_expdir']):
-                print('\nWill make a experiment directory\n')
+        pl['pickle_name'] = pl['checkpoint_dir'] + '/best_params.pickle'
+        pl['global_epoch'] = 0
+        pl['val_min'] = 100
+    
+    else:
 
-            elif os.path.isfile(parameter_list['pickle_name']):
-                parameter_list = helpfunc.read_pickle(parameter_list['pickle_name'])
-            
-            else:
-                print('No pickle file exits at {}'.format(parameter_list['pickle_name']))
-                shutil.rmtree(parameter_list['checkpoint_expdir'])
-                sys.exit()
+        pl['checkpoint_dir'] = pl['checkpoint_dir'] + '_optbest'
+        pl['pickle_name'] = pl['checkpoint_dir'] + '/best_params.pickle'
 
-            print('Multi GPU {}ing'.format(flag))
-            parameter_list['delta_t'] = args.delta_t
-            parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '_optuna'
-
-            parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
-            study.optimize(lambda trial: multi_train.traintest(trial, copy.deepcopy(parameter_list), flag), n_trials=args.num_optuna_trials)
-            df = study.trials_dataframe()
-            df.to_csv('optuna.csv')
-
-        elif flag == 'best':
-
-            if os.path.isfile(parameter_list['pickle_name']):
-                parameter_list = helpfunc.read_pickle(parameter_list['pickle_name'])
-            
-            else:
-                print('No pickle file exits at {}'.format(parameter_list['pickle_name']))
-                shutil.rmtree(cd_copy)
-                sys.exit()
-            
-            parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '_optbest'
-            cd_copy = parameter_list['checkpoint_dir']
-            parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
-
-            if not os.path.exists(parameter_list['checkpoint_dir']):
-                os.makedirs(parameter_list['checkpoint_dir'] + '/media')
-                os.makedirs(parameter_list['log_dir'])
-                parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/checkpoints'
-                os.makedirs(parameter_list['checkpoint_dir'])
-
-            print('Multi GPU {}ing'.format(flag + ' param training'))
-            parameter_list['delta_t'] = args.delta_t
-            parameter_list['learning_rate'] = parameter_list['learning_rate'] / len(tf.config.experimental.list_physical_devices('GPU'))
-            best_case = optuna.trial.FixedTrial(study.best_params)
-
-            parameter_list['pickle_name'] = parameter_list['checkpoint_dir'] + '/best_params.pickle'
-            parameter_list['global_epoch'] = 0
-            parameter_list['val_min'] = 100
-            multi_train.traintest(best_case, copy.deepcopy(parameter_list), flag)
+        if os.path.isfile(pl['pickle_name']):
+            pl = helpfunc.read_pickle(pl['pickle_name'])
+            print('Testing...')
+            pl['delta_t'] = args.delta_t
+            pl = testing.traintest(copy.deepcopy(pl))
         
         else:
+            print('No pickle file exits at {}'.format(pl['pickle_name']))
+            shutil.rmtree(pl['checkpoint_dir'])
+            sys.exit()
+    
+    return pl
 
-            parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '_optbest'
-            parameter_list['pickle_name'] = parameter_list['checkpoint_dir'] + '/best_params.pickle'
+def get_optuna_param(trial, pl):
 
-            if os.path.isfile(parameter_list['pickle_name']):
-                parameter_list = helpfunc.read_pickle(parameter_list['pickle_name'])
-                print('Testing...')
-                parameter_list['delta_t'] = args.delta_t
-                parameter_list = testing.traintest(copy.deepcopy(parameter_list))
-            
-            else:
-                print('No pickle file exits at {}'.format(parameter_list['pickle_name']))
-                shutil.rmtree(parameter_list['checkpoint_dir'])
-                sys.exit()
+    pl['en_width'] = trial.suggest_int('num_en/de_layers', pl['en_width_r'][0], pl['en_width_r'][1])
+    pl['de_width'] = pl['en_width']
 
+    pl['en_units'] = []
+    for i in range(pl['en_width']):
+        pl['en_units'].append(trial.suggest_int('layer_' + str(i), pl['en_units_r'][0], pl['en_units_r'][1]))
+    pl['de_units'] = pl['en_units'][::-1]
 
-def get_optuna_param(trial, parameter_list):
+    pl['kaux_width_real'] = 0
+    pl['kaux_units_real'] = []
+    if pl['num_real']:
+        pl['kaux_width_real'] = trial.suggest_int('num_kr_layers', pl['kaux_width_real_r'][0], pl['kaux_width_real_r'][1])
+        for i in range(pl['kaux_width_real']):
+            pl['kaux_units_real'].append(trial.suggest_int('kr_layer_' + str(i), pl['kaux_units_real_r'][0], pl['kaux_units_real_r'][1]))
+        pl['kaux_units_real'].append(1)
 
-    parameter_list['en_width'] = trial.suggest_int('num_en/de_layers', parameter_list['en_width_r'][0], parameter_list['en_width_r'][1])
-    parameter_list['de_width'] = parameter_list['en_width']
+    pl['kaux_width_complex'] = 0
+    pl['kaux_units_complex'] = []
+    if pl['num_complex_pairs']:
+        pl['kaux_width_complex'] = trial.suggest_int('num_kc_layers', pl['kaux_width_complex_r'][0], pl['kaux_width_complex_r'][1])
+        for i in range(pl['kaux_width_complex']):
+            pl['kaux_units_complex'].append(trial.suggest_int('kc_layer_' + str(i), pl['kaux_units_complex_r'][0], pl['kaux_units_complex_r'][1]))
+        pl['kaux_units_complex'].append(2)
 
-    parameter_list['en_units'] = []
-    for i in range(parameter_list['en_width']):
-        parameter_list['en_units'].append(trial.suggest_int('layer_' + str(i), parameter_list['en_units_r'][0], parameter_list['en_units_r'][1]))
-    parameter_list['de_units'] = parameter_list['en_units'][::-1]
+    pl['checkpoint_dir'] = pl['checkpoint_dir'] + '/' + str(pl['en_width']) + str(pl['kaux_width_real']) + str(pl['kaux_width_complex']) + '_' + '_'.join(map(str, pl['en_units'])) + '_' + '_'.join(map(str, pl['kaux_units_complex']))
+    pl['log_dir'] = pl['checkpoint_dir'] + pl['log_dir']
+    if not os.path.exists(pl['checkpoint_dir']):
+        os.makedirs(pl['log_dir'])
 
-    parameter_list['kaux_width_real'] = 0
-    parameter_list['kaux_units_real'] = []
-    if parameter_list['num_real']:
-        parameter_list['kaux_width_real'] = trial.suggest_int('num_kr_layers', parameter_list['kaux_width_real_r'][0], parameter_list['kaux_width_real_r'][1])
-        for i in range(parameter_list['kaux_width_real']):
-            parameter_list['kaux_units_real'].append(trial.suggest_int('kr_layer_' + str(i), parameter_list['kaux_units_real_r'][0], parameter_list['kaux_units_real_r'][1]))
-        parameter_list['kaux_units_real'].append(1)
+    return pl
 
-    parameter_list['kaux_width_complex'] = 0
-    parameter_list['kaux_units_complex'] = []
-    if parameter_list['num_complex_pairs']:
-        parameter_list['kaux_width_complex'] = trial.suggest_int('num_kc_layers', parameter_list['kaux_width_complex_r'][0], parameter_list['kaux_width_complex_r'][1])
-        for i in range(parameter_list['kaux_width_complex']):
-            parameter_list['kaux_units_complex'].append(trial.suggest_int('kc_layer_' + str(i), parameter_list['kaux_units_complex_r'][0], parameter_list['kaux_units_complex_r'][1]))
-        parameter_list['kaux_units_complex'].append(2)
+def objective(trial):
 
-    parameter_list['checkpoint_dir'] = parameter_list['checkpoint_dir'] + '/' + str(parameter_list['en_width']) + str(parameter_list['kaux_width_real']) + str(parameter_list['kaux_width_complex']) + '_' + '_'.join(map(str, parameter_list['en_units'])) + '_' + '_'.join(map(str, parameter_list['kaux_units_complex']))
-    parameter_list['log_dir'] = parameter_list['checkpoint_dir'] + parameter_list['log_dir']
-    if not os.path.exists(parameter_list['checkpoint_dir']):
-        os.makedirs(parameter_list['log_dir'])
+    pl = get_params(trial)
+    pl = get_optuna_param(trial, pl)
+    return multi_train.traintest(trial, copy.deepcopy(pl))
 
-    return parameter_list
+if __name__ == "__main__":
 
-def objective(trial, parameter_list):
+    if args.t == 'train':
+        study.optimize(objective, n_trials=args.num_optuna_trials)
+        df = study.trials_dataframe()
+        df.to_csv('optuna.csv')
 
-    parameter_list = get_optuna_param(trial, parameter_list)
-    return multi_train.traintest(trial, copy.deepcopy(parameter_list))
+    if args.t == 'best':
+        best_case = optuna.trial.FixedTrial(study.best_params)
+        objective(best_case)

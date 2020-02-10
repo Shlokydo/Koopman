@@ -9,11 +9,11 @@ import network_arch as net
 import Helperfunction as helpfunc
 from plot import plot_figure, plot_diff, animate
 
-def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj = 20, seconds = 2):
+def test(pl, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj = 20, seconds = 2):
 
-    time = np.arange(0, seconds, parameter_list['delta_t'])
+    time = np.arange(0, seconds, pl['delta_t'])
     steps = len(time)
-    dataframe = helpfunc.import_datset(parameter_list['dataset'], parameter_list['key_test'])
+    dataframe = helpfunc.import_datset(pl['dataset'], pl['key_test'])
 
     #Converting dataframe to numpy array
     nparray = helpfunc.dataframe_to_nparray(dataframe)
@@ -25,21 +25,21 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
     initial_dataset = helpfunc.change_nparray_datatype(nparray, 'float32')
 
     #Scale the dataset
-    initial_dataset = helpfunc.dataset_scaling(initial_dataset, parameter_list['input_scaling'])
+    initial_dataset = helpfunc.dataset_scaling(initial_dataset, pl['input_scaling'])
 
     #Generate split x and y sequence from the dataset
-    initial_dataset_x = helpfunc.sequences_test(initial_dataset, parameter_list['num_timesteps'])
+    initial_dataset_x = helpfunc.sequences_test(initial_dataset, pl['num_timesteps'])
 
     x_t_true = initial_dataset_x[:N_traj]
     extension_list = x_t_true[:,-1,:]
 
-    x_t = helpfunc.nl_pendulum(extension_list, time = time[: int(steps - parameter_list['num_timesteps'] + 1)])
+    x_t = helpfunc.nl_pendulum(extension_list, time = time[: int(steps - pl['num_timesteps'] + 1)])
     x_t_true = np.concatenate((x_t_true, x_t[:,1:,:]), axis=1)
     prediction_list_global = []
     k_embeddings_list_global = []
     eigen_value_global = []
-    r = [tf.zeros((1, parameter_list['kaux_units_real']), dtype=tf.float32) for s in range(parameter_list['kaux_width_real'] + 1)]
-    c = [tf.zeros((1, parameter_list['kaux_units_complex']), dtype=tf.float32) for s in range(parameter_list['kaux_width_complex'] + 1)]
+    r = [tf.zeros((1, pl['kaux_units_real']), dtype=tf.float32) for s in range(pl['kaux_width_real'] + 1)]
+    c = [tf.zeros((1, pl['kaux_units_complex']), dtype=tf.float32) for s in range(pl['kaux_width_complex'] + 1)]
 
     for j in range(x_t_true.shape[0]):
         prediction_list_local = []
@@ -50,7 +50,7 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
         
         #Createing first encoded state of all the trajectories
         k_embeddings_cur = encoder(input_value)
-        initial_stat = [[r for _ in range(parameter_list['num_real'])], [c for _ in range(parameter_list['num_complex_pairs'])]]
+        initial_stat = [[r for _ in range(pl['num_real'])], [c for _ in range(pl['num_complex_pairs'])]]
 
         #Appending embedding
         k_embeddings_list_local.append(k_embeddings_cur.numpy()[0,0,:])
@@ -88,34 +88,34 @@ def test(parameter_list, encoder, decoder, k_aux, k_jor, time_steps = 30, N_traj
     k_embeddings = np.asarray(k_embeddings_list_global)
     eigen_value = np.asarray(eigen_value_global)
     x_diff = helpfunc.difference(x_t_true, x_t)
-    plot_diff(x_diff[:,:,0], time, True, parameter_list['checkpoint_expdir']+'/media/x_variable.png', title = 'X error')
-    plot_diff(x_diff[:,:,1], time, True, parameter_list['checkpoint_expdir']+'/media/y_variable.png', title = 'Y error')
+    plot_diff(x_diff[:,:,0], time, True, pl['checkpoint_expdir']+'/media/x_variable.png', title = 'X error')
+    plot_diff(x_diff[:,:,1], time, True, pl['checkpoint_expdir']+'/media/y_variable.png', title = 'Y error')
     x_t_true = np.concatenate((x_t_true, x_t), axis=0)
-    plot_figure(x_t_true, True, parameter_list['checkpoint_expdir'] + '/media/nl_pendulum.png', title = 'Trajectory evolution')
-    plot_figure(k_embeddings, True, parameter_list['checkpoint_expdir'] + '/media/k_embeddings.png', statespace=False, embed=True, title = 'Koopman Embeddings')
-    plot_figure(eigen_value, True, parameter_list['checkpoint_expdir'] + '/media/eigen_value.png', statespace=False, evalue=True, title = 'Eigenvalue scatter plot')
-    animate(x_t_true, parameter_list['checkpoint_expdir'] + '/media/video.mp4')
+    plot_figure(x_t_true, True, pl['checkpoint_expdir'] + '/media/nl_pendulum.png', title = 'Trajectory evolution')
+    plot_figure(k_embeddings, True, pl['checkpoint_expdir'] + '/media/k_embeddings.png', statespace=False, embed=True, title = 'Koopman Embeddings')
+    plot_figure(eigen_value, True, pl['checkpoint_expdir'] + '/media/eigen_value.png', statespace=False, evalue=True, title = 'Eigenvalue scatter plot')
+    animate(x_t_true, pl['checkpoint_expdir'] + '/media/video.mp4')
     return None
 
-def traintest(parameter_list):
+def traintest(pl):
 
     print('\nGPU Available for testing: {}\n'.format(tf.test.is_gpu_available()))
 
-    parameter_list['stateful'] = True
+    pl['stateful'] = True
 
     #Get the Model
-    encoder = net.encoder(parameter_list = parameter_list)
-    decoder = net.decoder(parameter_list = parameter_list)
-    koopman_aux_net = net.koopman_aux_net(parameter_list = parameter_list)
-    koopman_jordan = net.koopman_jordan(parameter_list = parameter_list)
+    encoder = net.encoder(pl = pl)
+    decoder = net.decoder(pl = pl)
+    koopman_aux_net = net.koopman_aux_net(pl = pl)
+    koopman_jordan = net.koopman_jordan(pl = pl)
 
     #Defining the checkpoint instance
     checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), encoder = encoder, decoder = decoder, koopman_aux_net = koopman_aux_net, koopman_jordan = koopman_jordan)
 
     #Creating checkpoint instance
-    save_directory = parameter_list['checkpoint_dir']
+    save_directory = pl['checkpoint_dir']
     manager = tf.train.CheckpointManager(checkpoint, directory= save_directory,
-                                        max_to_keep= parameter_list['max_checkpoint_keep'])
+                                        max_to_keep= pl['max_checkpoint_keep'])
     checkpoint.restore(manager.latest_checkpoint).expect_partial()
 
     #Checking if previous checkpoint exists
@@ -123,7 +123,7 @@ def traintest(parameter_list):
         print("Restored from {}".format(manager.latest_checkpoint))
 
         print('Starting testing \n')
-        return test(parameter_list, encoder, decoder, koopman_aux_net, koopman_jordan)
+        return test(pl, encoder, decoder, koopman_aux_net, koopman_jordan)
 
     else:
         print("No checkpoint exists. Quiting.....")
