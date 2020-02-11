@@ -1,6 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
+def custom_lsigmoid(x):
+    return (tf.keras.activations.sigmoid(x) - 0.5)
+
 #Code for encoder layer
 class encoder(tf.keras.Model):
 
@@ -79,11 +82,12 @@ class kaux_real(tf.keras.Model):
         self.activation = pl['kp_activation']
 
     def build(self, input_shape):
-        
+       
         self.states = []
         self.koopman_layer_real = []
-        for i in range(self.width_r + 1):
-            self.koopman_layer_real.append(tf.keras.layers.GRU(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, return_state = True))
+        with tf.keras.utils.CustomObjectScope({'custom_lsigmoid': custom_lsigmoid}):
+            for i in range(self.width_r + 1):
+                self.koopman_layer_real.append(tf.keras.layers.GRU(units= self.units_r[i], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, return_state = True))
 
     def call(self, inputs, states):
         
@@ -106,8 +110,9 @@ class kaux_complex(tf.keras.Model):
 
         self.states = []
         self.koopman_layer_complex = []
-        for j in range(self.width_c + 1):
-            self.koopman_layer_complex.append(tf.keras.layers.GRU(units = self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, return_state = True))
+        with tf.keras.utils.CustomObjectScope({'custom_lsigmoid': custom_lsigmoid}):
+            for j in range(self.width_c + 1):
+                self.koopman_layer_complex.append(tf.keras.layers.GRU(units = self.units_c[j], activation = self.activation, recurrent_activation = 'sigmoid', return_sequences = True, return_state = True))
 
     def call(self, inputs, states):
         inputs = tf.reduce_mean(tf.square(inputs), axis = 2, keepdims = True)

@@ -48,7 +48,7 @@ parser.add_argument("--num_m_no_cal", "--m_no", default=40, type=int, help="Num 
 parser.add_argument("--num_m_cal", "--m_cal", default=10, type=int, help="Num of epoch with mth calculation")
 args = parser.parse_args()
 
-study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///example.db', load_if_exists=True, pruner=optuna.pruners.PercentilePruner(80.0))
+study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///krnn.db', load_if_exists=True, pruner=optuna.pruners.PercentilePruner(80.0))
 num_gpu = len(tf.config.experimental.list_physical_devices('GPU'))
 
 def get_params(trial):
@@ -94,7 +94,7 @@ def get_params(trial):
     pl['kaux_output_units_real'] = pl['num_real']                 #Number of real outputs
     pl['kaux_output_units_complex'] = pl['num_complex_pairs'] * 2 #Number of complex outputs
     pl['kp_initializer'] = 'glorot_uniform'     #Initializer of layers
-    pl['kp_activation'] = 'tanh'                #Activation of layers
+    pl['kp_activation'] = 'custom_lsigmoid'                #Activation of layers
 
     #Decoder layer
     pl['de_initializer'] = 'glorot_uniform'
@@ -145,9 +145,11 @@ def get_params(trial):
 
         print('Multi GPU {}ing'.format(args.t))
         pl['checkpoint_dir'] = pl['checkpoint_dir'] + '_optuna'
+        pl = get_network_param(trial, pl)
 
     elif args.t == 'best':
         
+        print('Multi GPU {}ing'.format(args.t + ' param training'))
         pl['checkpoint_dir'] = pl['checkpoint_dir'] + '_optbest'
         cd_copy = pl['checkpoint_dir']
         pl['log_dir'] = pl['checkpoint_dir'] + pl['log_dir']
@@ -158,12 +160,8 @@ def get_params(trial):
             pl['checkpoint_dir'] = pl['checkpoint_dir'] + '/checkpoints'
             os.makedirs(pl['checkpoint_dir'])
 
-        print('Multi GPU {}ing'.format(args.t + ' param training'))
-        pl['delta_t'] = args.delta_t
-
         pl['pickle_name'] = pl['checkpoint_dir'] + '/best_params.pickle'
-        pl['global_epoch'] = 0
-        pl['val_min'] = 100
+        pl = get_network_param(trial, pl)
     
     else:
 
@@ -183,7 +181,7 @@ def get_params(trial):
     
     return pl
 
-def get_optuna_param(trial, pl):
+def get_network_param(trial, pl):
 
     pl['en_width'] = trial.suggest_int('num_en/de_layers', pl['en_width_r'][0], pl['en_width_r'][1])
     pl['de_width'] = pl['en_width']
@@ -219,7 +217,6 @@ def get_optuna_param(trial, pl):
 def objective(trial):
 
     pl = get_params(trial)
-    pl = get_optuna_param(trial, pl)
     return multi_train.traintest(trial, copy.deepcopy(pl))
 
 if __name__ == "__main__":

@@ -306,7 +306,7 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
 
         print('\n Total Epoch time (in minutes): {}'.format((time.time()-timer_tot)/60))
         pl['global_epoch'] = global_epoch
-        pl['val_min'] = val_loss_min.nump()
+        pl['val_min'] = val_loss_min.numpy()
         print('\nNumber of iterations for optimizer: {}'.format(optimizer.iterations.numpy()))
 
         helpfunc.write_pickle(pl, pl['pickle_name'])
