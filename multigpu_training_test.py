@@ -8,7 +8,6 @@ import mlflow
 import mlflow.tensorflow
 
 mlflow.tensorflow.autolog()
-mlflow.set_experiment('KRNN_Optuna')
 
 import network_arch as net
 import Helperfunction as helpfunc
@@ -19,6 +18,9 @@ import optuna
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
 def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer):
+
+    mlflow.set_experiment(pl['key'])
+
     #Importing dataset into dataframe
     dataframe = helpfunc.import_datset(pl['dataset'], pl['key'])
 
@@ -81,14 +83,13 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
     decaying_weights = tf.convert_to_tensor(decaying_weights, dtype = 'float32')
 
     try:
-        rname = 'opt_run' + str(trial.number)
+        rname = str(trial.study.study_name) + '_' + str(trial.number)
     except:
         rname = 'best'
 
     with mlflow.start_run(run_name = rname):
 
         mlflow.log_params(pl)
-        mlflow.set_tags(trial.distributions)
 
         with mirrored_strategy.scope():
 
@@ -134,7 +135,7 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
                 if mth_flag:
                     with tf.GradientTape() as tape:     
                         t_mth_predictions = loop_net(t_current)
-                        loss_mth = loss_func(t_mth_predictions, t_next_actual[:, pl['mth_step']:,:]) / (pl['Batch_size'] * (pl['num_timesteps'] - pl['mth_step'] - 1)) * 0.005
+                        loss_mth = loss_func(t_mth_predictions, t_next_actual[:, pl['mth_step']:,:]) / (pl['Batch_size'] * (pl['num_timesteps'] - pl['mth_step'] - 1)) * pl['mth_mellow'] 
                     
                     loop_net.layers[0].trainable=False
                     loop_net.layers[3].trainable=False
@@ -146,6 +147,7 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
                     loss_mth = tf.constant(0, dtype=tf.float32)
 
                 metric_device = compute_metric(t_next_actual, t_next_predicted)
+                metric.reset_states()
 
                 return loss_next_prediction, metric_device, reconstruction_loss, linearization_loss, loss_mth
 
@@ -167,6 +169,7 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
                     loss_mth = tf.constant(0, dtype=tf.float32)
 
                 metric_device = compute_metric(t_next_actual, t_next_predicted)
+                metric.reset_states()
 
                 return loss_next_prediction, metric_device, reconstruction_loss, linearization_loss, loss_mth
 
@@ -274,8 +277,8 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
                     if trial.should_prune():
                         raise optuna.exceptions.TrialPruned()
 
-                    if val_loss_min > v_loss:
-                        val_loss_min = v_loss
+                    if val_loss_min > (v_loss + v_reconst + v_lin):
+                        val_loss_min = (v_loss + v_reconst + v_lin)
 
                         if (global_epoch > pl['only_RNN']):
                             # Report intermediate objective value.
@@ -284,19 +287,20 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
                             print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
                             print("loss {}".format(loss.numpy()))
 
-                        mlflow.log_metric('V_RMSE', v_metric.numpy())
-                        mlflow.log_metric('V_MSE_RNN', v_loss.numpy())
-                        mlflow.log_metric('V_Reconstruct', v_reconst.numpy())
-                        mlflow.log_metric('V_Linearization', v_lin.numpy())
-                        mlflow.log_metric('V_Mth', v_mth.numpy())
+                        mlflow.log_metric('V_RMSE', v_metric.numpy(), step= global_epoch)
+                        mlflow.log_metric('V_MSE_RNN', v_loss.numpy(), step= global_epoch)
+                        mlflow.log_metric('V_Reconstruct', v_reconst.numpy(), step= global_epoch)
+                        mlflow.log_metric('V_Linearization', v_lin.numpy(), step= global_epoch)
+                        mlflow.log_metric('V_Mth', v_mth.numpy(), step= global_epoch)
 
-                        mlflow.log_metric('T_RMSE', t_metric.numpy())
-                        mlflow.log_metric('T_MSE_RNN', loss.numpy())
-                        mlflow.log_metric('T_Reconstruct', t_reconst.numpy())
-                        mlflow.log_metric('T_Linearization', t_lin.numpy())
-                        mlflow.log_metric('T_Mth', t_mth.numpy())
+                        mlflow.log_metric('T_RMSE', t_metric.numpy(), step= global_epoch)
+                        mlflow.log_metric('T_MSE_RNN', loss.numpy(), step= global_epoch)
+                        mlflow.log_metric('T_Reconstruct', t_reconst.numpy(), step= global_epoch)
+                        mlflow.log_metric('T_Linearization', t_lin.numpy(), step= global_epoch)
+                        mlflow.log_metric('T_Mth', t_mth.numpy(), step= global_epoch)
 
                         mlflow.log_metric('LearnRate', optimizer._decayed_lr(var_dtype=tf.float32).numpy())
+                        mlflow.log_metric('Total_loss', val_loss_min.numpy(), step = global_epoch)
 
                     if math.isnan(v_metric):
                         print('Breaking out as the validation loss is nan')
@@ -311,7 +315,9 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
 
         helpfunc.write_pickle(pl, pl['pickle_name'])
         mlflow.log_artifact(pl['pickle_name'])
+        mlflow.log_artifact('./test_optuna.sh')
         mlflow.log_params(pl)
+        mlflow.set_tags(trial.params)
         mlflow.end_run()
     
     return val_loss_min

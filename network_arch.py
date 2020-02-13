@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 def custom_lsigmoid(x):
-    return (tf.keras.activations.sigmoid(x) - 0.5)
+    return (2 * tf.keras.activations.sigmoid(x) - 1.0)
 
 #Code for encoder layer
 class encoder(tf.keras.Model):
@@ -21,7 +21,7 @@ class encoder(tf.keras.Model):
             self.encoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
         self.encoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
-        self.encoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
+        self.encoder_layer.append(tf.keras.layers.PReLU(alpha_initializer= tf.constant_initializer(0.25), shared_axes = [1]))
 
         self.layer_net = tf.keras.Sequential(self.encoder_layer)
 
@@ -55,7 +55,7 @@ class decoder(tf.keras.Model):
             self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
 
         self.decoder_layer.append(tf.keras.layers.Dense(units= self.output_units, activation= None))
-        self.decoder_layer.append(tf.keras.layers.LeakyReLU(alpha= 0.3))
+        self.decoder_layer.append(tf.keras.layers.PReLU(alpha_initializer= tf.constant_initializer(0.25), shared_axes = [1]))
 
         self.layer_net = tf.keras.Sequential(self.decoder_layer)
 

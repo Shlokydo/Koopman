@@ -46,9 +46,12 @@ parser.add_argument("--lr_decayrate", "--lrdr", default=0.1, type=float, help="L
 
 parser.add_argument("--num_m_no_cal", "--m_no", default=40, type=int, help="Num of epoch without mth calculation")
 parser.add_argument("--num_m_cal", "--m_cal", default=10, type=int, help="Num of epoch with mth calculation")
+parser.add_argument("--num_only_rnn", "-nor", default=1000, type=int, help="Num of only RNN iterations")
+
+parser.add_argument("--study_name", "-sn", default = 'trial', type = str, help = "Name of the Optuna Study")
 args = parser.parse_args()
 
-study = optuna.create_study(direction = 'minimize', study_name='trial', storage='sqlite:///krnn.db', load_if_exists=True, pruner=optuna.pruners.PercentilePruner(80.0))
+study = optuna.create_study(direction = 'minimize', study_name=args.study_name, storage='sqlite:///krnn.db', load_if_exists=True, pruner=optuna.pruners.PercentilePruner(80.0))
 num_gpu = len(tf.config.experimental.list_physical_devices('GPU'))
 
 def get_params(trial):
@@ -103,16 +106,14 @@ def get_params(trial):
 
     pl['l_decay_param'] = 0.98
 
-    #Settings related to trainig
-    pl['learning_rate'] = trial.suggest_uniform('l_rate', 0.5e-3, 5e-3)                 #Initial learning rate
+    #Settings related to training
     pl['lr_decay_rate'] = args.lr_decayrate
-    pl['learning_rate'] = pl['learning_rate'] * pl['Batch_size'] / 128.0
     pl['dropout'] = 0.0                         #Dropout for the layers
     pl['early_stop_patience'] =21900               #Patience in num of epochs for early stopping
-    pl['mth_step'] = 40                         #mth step for which prediction needs to be made
+    pl['mth_step'] = 30                         #mth step for which prediction needs to be made
     pl['mth_cal_patience'] = args.num_m_cal                  #number of epochs for which mth loss is calculated
     pl['mth_no_cal_epochs'] = args.num_m_no_cal                #Number of epochs for which mth loss is not calculated
-    pl['only_RNN'] = 1500
+    pl['only_RNN'] = args.num_only_rnn
     pl['weighted'] = args.weighted_loss
     pl['reconst_hp'] = 0.001
     pl['global_epoch'] = 0
@@ -207,10 +208,14 @@ def get_network_param(trial, pl):
             pl['kaux_units_complex'].append(trial.suggest_int('kc_layer_' + str(i), pl['kaux_units_complex_r'][0], pl['kaux_units_complex_r'][1]))
         pl['kaux_units_complex'].append(2)
 
-    pl['checkpoint_dir'] = pl['checkpoint_dir'] + '/' + str(pl['en_width']) + str(pl['kaux_width_real']) + str(pl['kaux_width_complex']) + '_' + '_'.join(map(str, pl['en_units'])) + '_' + '_'.join(map(str, pl['kaux_units_complex']))
+    pl['checkpoint_dir'] = pl['checkpoint_dir'] + '/' + str(trial.number)
     pl['log_dir'] = pl['checkpoint_dir'] + pl['log_dir']
     if not os.path.exists(pl['checkpoint_dir']):
         os.makedirs(pl['log_dir'])
+    
+    pl['learning_rate'] = trial.suggest_uniform('l_rate', 1e-3, 3e-3)                 #Initial learning rate
+    pl['learning_rate'] = pl['learning_rate'] * pl['Batch_size'] / 128.0
+    pl['mth_mellow'] = trial.suggest_categorical('mth_mellow', [1, 0.1, 0.01, 0.001])
 
     return pl
 
