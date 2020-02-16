@@ -17,7 +17,7 @@ import optuna
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
-def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer):
+def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
 
     mlflow.set_experiment(pl['key'])
 
@@ -209,104 +209,90 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_wri
             cal_mth_loss_flag = False
             mth_loss_cal_mani = pl['mth_no_cal_epochs']
 
-            with summary_writer.as_default():
+            epochs = pl['epochs']
 
-                epochs = pl['epochs']
+            for epoch in range(epochs):
 
-                for epoch in range(epochs):
+                global_epoch += 1
 
-                    global_epoch += 1
+                start_time = time.time()
+                print('\nStart of epoch {}'.format(global_epoch))
 
-                    start_time = time.time()
-                    print('\nStart of epoch {}'.format(global_epoch))
+                if (epoch > pl['only_RNN']):
+                    if not((global_epoch) % mth_loss_cal_mani):
+                        if not(cal_mth_loss_flag):
+                            print("\n Starting calculation of mth prediction loss \n")
+                            cal_mth_loss_flag = True
+                            mth_loss_cal_mani = pl['mth_cal_patience']
+                        else:
+                            cal_mth_loss_flag = False
+                            mth_loss_cal_mani = pl['mth_no_cal_epochs']
+                            print("Stopping mth calculation loss")
 
-                    if (epoch > pl['only_RNN']):
-                        if not((global_epoch) % mth_loss_cal_mani):
-                            if not(cal_mth_loss_flag):
-                                print("\n Starting calculation of mth prediction loss \n")
-                                cal_mth_loss_flag = True
-                                mth_loss_cal_mani = pl['mth_cal_patience']
-                            else:
-                                cal_mth_loss_flag = False
-                                mth_loss_cal_mani = pl['mth_no_cal_epochs']
-                                print("Stopping mth calculation loss")
+                # Iterate over the batches of the dataset.
+                for step, inp in enumerate(dataset):
 
-                    # Iterate over the batches of the dataset.
-                    for step, inp in enumerate(dataset):
+                    global_step += 1
 
-                        global_step += 1
+                    inputs = (inp, cal_mth_loss_flag) 
+                    loss, t_metric, t_reconst, t_lin, t_mth = distributed_train(inputs)
 
-                        inputs = (inp, cal_mth_loss_flag) 
-                        loss, t_metric, t_reconst, t_lin, t_mth = distributed_train(inputs)
+                    if not (step % pl['log_freq']):
+                        print('Training loss (for one batch) at step {}: {}'.format(step+1, float(loss)))
+                        print('Seen so far: {} samples'.format(global_step * pl['Batch_size']))
 
-                        if not (step % pl['log_freq']):
-                            print('Training loss (for one batch) at step {}: {}'.format(step+1, float(loss)))
-                            print('Seen so far: {} samples'.format(global_step * pl['Batch_size']))
+                print('Training acc over epoch: {} \n'.format(float(t_metric)))
 
-                    print('Training acc over epoch: {} \n'.format(float(t_metric)))
+                for v_step, v_inp in enumerate(val_dataset):
 
-                    if not (global_epoch % pl['summery_freq']):
-                        tf.summary.scalar('RootMSE error', t_metric, step= global_epoch)
-                        tf.summary.scalar('Loss RNN', loss, step= global_epoch)
-                        tf.summary.scalar('Reconstruction_loss', t_reconst, step= global_epoch)
-                        tf.summary.scalar('Linearization_loss', t_lin, step= global_epoch)
-                        tf.summary.scalar('Learning rate', optimizer._decayed_lr(var_dtype=tf.float32).numpy(), step= global_epoch)
-                        if cal_mth_loss_flag:
-                            tf.summary.scalar('Mth prediction loss', t_mth, step = global_epoch)
+                    v_inputs = (v_inp, cal_mth_loss_flag)
+                    v_loss, v_metric, v_reconst, v_lin, v_mth = distributed_val(v_inputs)
 
-                    for v_step, v_inp in enumerate(val_dataset):
+                    if not (v_step % pl['log_freq']):
+                        print('Validation loss (for one batch) at step {} : {}'.format(v_step + 1, float(v_loss)))
 
-                        v_inputs = (v_inp, cal_mth_loss_flag)
-                        v_loss, v_metric, v_reconst, v_lin, v_mth = distributed_val(v_inputs)
+                print('Validation acc over epoch: {} \n'.format(float(v_metric)))
 
-                        if not (v_step % pl['log_freq']):
-                            print('Validation loss (for one batch) at step {} : {}'.format(v_step + 1, float(v_loss)))
+                trial.report(v_loss, epoch)
+                trial.report(v_reconst, epoch)
+                trial.report(v_lin, epoch)
+                # Handle pruning based on the intermediate value.
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
 
-                    print('Validation acc over epoch: {} \n'.format(float(v_metric)))
+                if val_loss_min > (v_loss + v_reconst + v_lin):
+                    val_loss_min = (v_loss + v_reconst + v_lin)
 
-                    if not (global_epoch % pl['summery_freq']):
-                        tf.summary.scalar('V_RootMSE error', v_metric, step= global_epoch)
-                        tf.summary.scalar('V_Loss RNN', v_loss, step= global_epoch)
-                        tf.summary.scalar('V_Reconstruction_loss', v_reconst, step= global_epoch)
-                        tf.summary.scalar('V_Linearization_loss', v_lin, step= global_epoch)
-                        if cal_mth_loss_flag:
-                            tf.summary.scalar('V_Mth prediction loss', v_mth, step = global_epoch)
-                    
-                    trial.report(v_loss, epoch)
-                    # Handle pruning based on the intermediate value.
-                    if trial.should_prune():
-                        raise optuna.exceptions.TrialPruned()
+                    if (global_epoch > pl['only_RNN']):
+                        # Report intermediate objective value.
+                        checkpoint.epoch.assign(global_epoch)
+                        save_path = manager.save()
+                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
+                        print("loss {}".format(loss.numpy()))
 
-                    if val_loss_min > (v_loss + v_reconst + v_lin):
-                        val_loss_min = (v_loss + v_reconst + v_lin)
+                if not (global_epoch % pl['summery_freq']):
+                    mlflow.log_metric('V_RMSE', v_metric.numpy(), step= global_epoch)
+                    mlflow.log_metric('V_MSE_RNN', v_loss.numpy(), step= global_epoch)
+                    mlflow.log_metric('V_Reconstruct', v_reconst.numpy(), step= global_epoch)
+                    mlflow.log_metric('V_Linearization', v_lin.numpy(), step= global_epoch)
 
-                        if (global_epoch > pl['only_RNN']):
-                            # Report intermediate objective value.
-                            checkpoint.epoch.assign(global_epoch)
-                            save_path = manager.save()
-                            print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
-                            print("loss {}".format(loss.numpy()))
+                    mlflow.log_metric('T_RMSE', t_metric.numpy(), step= global_epoch)
+                    mlflow.log_metric('T_MSE_RNN', loss.numpy(), step= global_epoch)
+                    mlflow.log_metric('T_Reconstruct', t_reconst.numpy(), step= global_epoch)
+                    mlflow.log_metric('T_Linearization', t_lin.numpy(), step= global_epoch)
 
-                        mlflow.log_metric('V_RMSE', v_metric.numpy(), step= global_epoch)
-                        mlflow.log_metric('V_MSE_RNN', v_loss.numpy(), step= global_epoch)
-                        mlflow.log_metric('V_Reconstruct', v_reconst.numpy(), step= global_epoch)
-                        mlflow.log_metric('V_Linearization', v_lin.numpy(), step= global_epoch)
+                    if cal_mth_loss_flag:
                         mlflow.log_metric('V_Mth', v_mth.numpy(), step= global_epoch)
-
-                        mlflow.log_metric('T_RMSE', t_metric.numpy(), step= global_epoch)
-                        mlflow.log_metric('T_MSE_RNN', loss.numpy(), step= global_epoch)
-                        mlflow.log_metric('T_Reconstruct', t_reconst.numpy(), step= global_epoch)
-                        mlflow.log_metric('T_Linearization', t_lin.numpy(), step= global_epoch)
                         mlflow.log_metric('T_Mth', t_mth.numpy(), step= global_epoch)
 
-                        mlflow.log_metric('LearnRate', optimizer._decayed_lr(var_dtype=tf.float32).numpy())
-                        mlflow.log_metric('Total_loss', val_loss_min.numpy(), step = global_epoch)
+                    mlflow.log_metric('LearnRate', optimizer._decayed_lr(var_dtype=tf.float32).numpy())
+                    mlflow.log_metric('Total_loss', val_loss_min.numpy(), step = global_epoch)
 
-                    if math.isnan(v_metric):
-                        print('Breaking out as the validation loss is nan')
-                        break
+                if math.isnan(v_metric):
+                    print('Breaking out as the validation loss is nan')
+                    break
 
-                    print('Time for epoch (in seconds): %s' %((time.time() - start_time)))
+                print('Time for epoch (in seconds): %s' %((time.time() - start_time)))
 
         print('\n Total Epoch time (in minutes): {}'.format((time.time()-timer_tot)/60))
         pl['global_epoch'] = global_epoch
@@ -348,9 +334,6 @@ def traintest(trial, pl):
         #Defining the checkpoint instance
         checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), encoder = encoder, decoder = decoder, kaux_real = kaux_real, kaux_complex = kaux_complex, koopman_jordan = koopman_jordan, optimizer = optimizer)
 
-    #Creating summary writer
-    summary_writer = tf.summary.create_file_writer(logdir= pl['log_dir'])
-
     #Creating checkpoint instance
     save_directory = pl['checkpoint_dir']
     manager = tf.train.CheckpointManager(checkpoint, directory= save_directory, max_to_keep= pl['max_checkpoint_keep'])
@@ -361,7 +344,7 @@ def traintest(trial, pl):
         print("Restored from {}".format(manager.latest_checkpoint))
 
         print('Starting training of Experiment... \n')
-        to_return = train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        to_return = train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer)
         print('\nMinimum val_loss calculated: {}\n'.format(to_return))
         return to_return
 
@@ -369,6 +352,6 @@ def traintest(trial, pl):
         print("No checkpoint exists.")
 
         print('Initializing from scratch for Experiment... \n')
-        to_return = train(trial, pl, preliminary_net, loop_net, checkpoint, manager, summary_writer, optimizer)
+        to_return = train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer)
         print('\nMinimum val_loss calculated: {}\n'.format(to_return))
         return to_return
