@@ -19,6 +19,7 @@ mirrored_strategy = tf.distribute.MirroredStrategy()
 
 def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
 
+    mlflow.set_tracking_uri('sqlite:///mlruns.db')
     mlflow.set_experiment(pl['key'])
 
     #Importing dataset into dataframe
@@ -70,9 +71,6 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
     dataset = tf.data.Dataset.zip((tf_dataset_batch_x, tf_dataset_batch_y))
     val_dataset = tf.data.Dataset.zip((tf_dataset_batch_x_val, tf_dataset_batch_y_val))
 
-    #Shuffling the dataset again (kinda redundant but no problem so why not)
-    dataset = dataset.shuffle(pl['Buffer_size'], reshuffle_each_iteration=True)
-
     #Distributing the dataset
     dataset = mirrored_strategy.experimental_distribute_dataset(dataset)
     val_dataset = mirrored_strategy.experimental_distribute_dataset(val_dataset)
@@ -85,7 +83,7 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
     try:
         rname = str(trial.study.study_name) + '_' + str(trial.number)
     except:
-        rname = 'best'
+        rname = 'best_lstm'
 
     with mlflow.start_run(run_name = rname):
 
@@ -210,6 +208,7 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
             mth_loss_cal_mani = pl['mth_no_cal_epochs']
 
             epochs = pl['epochs']
+            r_only = pl['only_RNN']
 
             for epoch in range(epochs):
 
@@ -218,8 +217,13 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
                 start_time = time.time()
                 print('\nStart of epoch {}'.format(global_epoch))
 
-                if (epoch > pl['only_RNN']):
-                    if not((global_epoch) % mth_loss_cal_mani):
+                if (global_epoch > r_only):
+                    
+                    r_only += 1
+                    if not (global_epoch % pl['only_RNN_2']):
+                        r_only = r_only + pl['only_RNN_2']
+
+                    if not(global_epoch % mth_loss_cal_mani):
                         if not(cal_mth_loss_flag):
                             print("\n Starting calculation of mth prediction loss \n")
                             cal_mth_loss_flag = True
@@ -228,6 +232,10 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
                             cal_mth_loss_flag = False
                             mth_loss_cal_mani = pl['mth_no_cal_epochs']
                             print("Stopping mth calculation loss")
+
+                else:
+
+                    cal_mth_loss_flag = False
 
                 # Iterate over the batches of the dataset.
                 for step, inp in enumerate(dataset):
@@ -263,7 +271,7 @@ def train(trial, pl, preliminary_net, loop_net, checkpoint, manager, optimizer):
                 if val_loss_min > (v_loss + v_reconst + v_lin):
                     val_loss_min = (v_loss + v_reconst + v_lin)
 
-                    if (global_epoch > pl['only_RNN']):
+                    if (global_epoch > r_only):
                         # Report intermediate objective value.
                         checkpoint.epoch.assign(global_epoch)
                         save_path = manager.save()

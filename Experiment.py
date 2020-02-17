@@ -1,6 +1,7 @@
 import copy
 import random
 import numpy as np
+np.seed(1)
 import pandas as pd
 import random as r
 import os
@@ -46,7 +47,8 @@ parser.add_argument("--lr_decayrate", "--lrdr", default=0.1, type=float, help="L
 
 parser.add_argument("--num_m_no_cal", "--m_no", default=40, type=int, help="Num of epoch without mth calculation")
 parser.add_argument("--num_m_cal", "--m_cal", default=10, type=int, help="Num of epoch with mth calculation")
-parser.add_argument("--num_only_rnn", "-nor", default=1000, type=int, help="Num of only RNN iterations")
+parser.add_argument("--num_only_rnn", "-nor", default=500, type=int, help="Num of only RNN iterations")
+parser.add_argument("--num_rnn_2", "-nr2", default=100, type=int, help="Num of only RNN iterations after the first one")
 
 parser.add_argument("--study_name", "-sn", default = 'trial', type = str, help = "Name of the Optuna Study")
 args = parser.parse_args()
@@ -114,6 +116,7 @@ def get_params(trial):
     pl['mth_cal_patience'] = args.num_m_cal                  #number of epochs for which mth loss is calculated
     pl['mth_no_cal_epochs'] = args.num_m_no_cal                #Number of epochs for which mth loss is not calculated
     pl['only_RNN'] = args.num_only_rnn
+    pl['only_RNN_2'] = args.num_rnn_2
     pl['weighted'] = args.weighted_loss
     pl['reconst_hp'] = 0.001
     pl['global_epoch'] = 0
@@ -215,7 +218,7 @@ def get_network_param(trial, pl):
     
     pl['learning_rate'] = trial.suggest_uniform('l_rate', 1e-3, 3e-3)                 #Initial learning rate
     pl['learning_rate'] = pl['learning_rate'] * pl['Batch_size'] / 128.0
-    pl['mth_mellow'] = trial.suggest_categorical('mth_mellow', [1, 0.1, 0.01, 0.001])
+    pl['mth_mellow'] = trial.suggest_categorical('mth_mellow', [1, 0.1, 0.01])
 
     return pl
 
@@ -227,9 +230,11 @@ def objective(trial):
 if __name__ == "__main__":
 
     if args.t == 'train':
+        st = time.time()
         study.optimize(objective, n_trials=args.num_optuna_trials)
         df = study.trials_dataframe()
         df.to_csv('optuna.csv')
+        print('Total experiment time for {} trials: {}'.format(args.num_optuna_trials, time.time() - st))
 
     if args.t == 'best':
         best_case = optuna.trial.FixedTrial(study.best_params)
